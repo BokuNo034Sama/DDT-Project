@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #0C1220;
+    --foreground: #E8EAF0;
+
+    --card: #141C2E;
+    --card-foreground: #E8EAF0;
+
+    --popover: #141C2E;
+    --popover-foreground: #E8EAF0;
+
+    --primary: #F59E0B;
+    --primary-foreground: #0C1220;
+
+    --secondary: #1C2640;
+    --secondary-foreground: #E8EAF0;
+
+    --muted: #1C2640;
+    --muted-foreground: #8892A4;
+
+    --accent: #2A1F05;
+    --accent-foreground: #F59E0B;
+
+    --destructive: #2E0A0A;
+    --destructive-foreground: #F87171;
+
+    --border: #2A3550;
+    --input: #1A2235;
+    --ring: #F59E0B;
+
+    --radius: 0.5rem;
+
+    /* Status Chip Colors */
+    --status-not-started-bg: #1A2235;
+    --status-not-started-text: #8892A4;
+    --status-not-started-border: #2A3550;
+
+    --status-wip-bg: #0D1F3C;
+    --status-wip-text: #60A5FA;
+    --status-wip-border: #1E3A5F;
+
+    --status-analysis-done-bg: #0D2B2B;
+    --status-analysis-done-text: #2DD4BF;
+    --status-analysis-done-border: #0F4040;
+
+    --status-sketch-done-bg: #1A1040;
+    --status-sketch-done-text: #A78BFA;
+    --status-sketch-done-border: #2D1F6E;
+
+    --status-report-done-bg: #2A1F05;
+    --status-report-done-text: #F59E0B;
+    --status-report-done-border: #4A3510;
+
+    --status-proof-ready-bg: #2A1505;
+    --status-proof-ready-text: #FB923C;
+    --status-proof-ready-border: #4A2A10;
+
+    --status-report-uploaded-bg: #10203A;
+    --status-report-uploaded-text: #818CF8;
+    --status-report-uploaded-border: #1E2F5A;
+
+    --status-report-verified-bg: #0A2E1A;
+    --status-report-verified-text: #34D399;
+    --status-report-verified-border: #0F4A2A;
+
+    --status-report-delivered-bg: #062210;
+    --status-report-delivered-text: #10B981;
+    --status-report-delivered-border: #0A3A1C;
+
+    --status-proof-failed-bg: #2E0A0A;
+    --status-proof-failed-text: #F87171;
+    --status-proof-failed-border: #4A1010;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-syne font-bold;
+  }
+}
