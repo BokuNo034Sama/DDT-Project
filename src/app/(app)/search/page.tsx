@@ -66,7 +66,7 @@ export default function SearchPage() {
 
           {results && results.length > 0 && (
             <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
-              {results.map((project) => (
+              {results.map((project: { id: string; ndt_code: string; client_name: string; address: string; site_date: string; status: string }) => (
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}

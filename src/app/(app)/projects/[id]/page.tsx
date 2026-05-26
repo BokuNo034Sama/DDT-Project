@@ -26,8 +26,14 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         <EmptyState
           title="Project Not Found"
           description="The project you are looking for does not exist or you don't have permission to view it."
-          actionLabel="Back to Projects"
-          onAction={() => window.location.assign("/projects")}
+          action={
+            <button 
+              onClick={() => window.location.assign("/projects")}
+              className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors"
+            >
+              Back to Projects
+            </button>
+          }
         />
       </div>
     );

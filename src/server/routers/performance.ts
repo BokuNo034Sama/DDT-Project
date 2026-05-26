@@ -45,7 +45,7 @@ export const performanceRouter = router({
         // Completed stage assignments
         supabase
           .from("project_stage_assignments")
-          .select("*")
+          .select("*, projects(ndt_code)")
           .eq("tenant_id", tenantId)
           .eq("status", "completed")
           .gte("completed_at", startDate)
@@ -53,14 +53,14 @@ export const performanceRouter = router({
         // Site visits
         supabase
           .from("site_visits")
-          .select("*")
+          .select("*, projects(ndt_code, client_name, number_of_floors)")
           .eq("tenant_id", tenantId)
           .gte("visit_date", startDate)
           .lte("visit_date", endDate),
         // Proofread faults (where result = fail)
         supabase
           .from("proof_reviews")
-          .select("*")
+          .select("*, projects(ndt_code)")
           .eq("tenant_id", tenantId)
           .eq("result", "fail")
           .gte("reviewed_at", startDate)
@@ -71,16 +71,12 @@ export const performanceRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch performance data" });
       }
 
-      type AssignmentType = { assigned_to: string | null; started_at: string | null; completed_at: string | null; };
-      type SiteVisitType = { staff_id: string; };
-      type FaultType = { report_handler_id: string | null; };
-
-      const assignments: AssignmentType[] = assignmentsData.data || [];
-      const siteVisits: SiteVisitType[] = siteVisitsData.data || [];
-      const faults: FaultType[] = faultsData.data || [];
+      const assignments = (assignmentsData.data || []) as any[];
+      const siteVisits = (siteVisitsData.data || []) as any[];
+      const faults = (faultsData.data || []) as any[];
 
       // Calculate efficiency for each user
-      const reports = users.map((user) => {
+      const reports = users.map((user: UserType) => {
         const userAssignments = assignments.filter((a) => a.assigned_to === user.id);
         const userVisits = siteVisits.filter((sv) => sv.staff_id === user.id);
         const userFaults = faults.filter((f) => f.report_handler_id === user.id);
@@ -89,20 +85,39 @@ export const performanceRouter = router({
         const siteVisitsCount = userVisits.length;
         const faultCount = userFaults.length;
 
-        // Calculate average completion hours
+        // Breakdown by stage type
+        const stagesBreakdown = {
+          analysis: userAssignments.filter((a) => a.stage === "analysis").length,
+          sketch: userAssignments.filter((a) => a.stage === "sketch").length,
+          report_writing: userAssignments.filter((a) => a.stage === "report_writing").length,
+          proofreading: userAssignments.filter((a) => a.stage === "proofreading").length,
+        };
+
+        // Calculate average completion hours and details
         let totalHours = 0;
         let validAssignments = 0;
 
-        userAssignments.forEach((assignment) => {
+        const stageDetails = userAssignments.map((assignment) => {
+          let durationHours = 0;
           if (assignment.started_at && assignment.completed_at) {
             const start = new Date(assignment.started_at).getTime();
             const end = new Date(assignment.completed_at).getTime();
             const hours = (end - start) / (1000 * 60 * 60);
             if (hours > 0) {
+              durationHours = hours;
               totalHours += hours;
               validAssignments++;
             }
           }
+          return {
+            id: assignment.id,
+            project_id: assignment.project_id,
+            ndt_code: assignment.projects?.ndt_code ?? "—",
+            stage: assignment.stage,
+            started_at: assignment.started_at,
+            completed_at: assignment.completed_at,
+            durationHours,
+          };
         });
 
         const avgCompletionHours = validAssignments > 0 ? totalHours / validAssignments : 0;
@@ -114,15 +129,36 @@ export const performanceRouter = router({
           siteVisitsCount
         );
 
+        const siteVisitDetails = userVisits.map((sv) => ({
+          id: sv.id,
+          project_id: sv.project_id,
+          ndt_code: sv.projects?.ndt_code ?? "—",
+          client_name: sv.projects?.client_name ?? "—",
+          visit_date: sv.visit_date,
+          number_of_floors: sv.number_of_floors ?? sv.projects?.number_of_floors ?? null,
+        }));
+
+        const faultDetails = userFaults.map((f) => ({
+          id: f.id,
+          project_id: f.project_id,
+          ndt_code: f.projects?.ndt_code ?? "—",
+          failure_reason: f.failure_reason,
+          reviewed_at: f.reviewed_at,
+        }));
+
         return {
           user,
           stats: {
             stagesCompleted,
+            stagesBreakdown,
             avgCompletionHours,
             faultCount,
             siteVisitsCount,
             efficiencyScore,
           },
+          stageDetails,
+          siteVisitDetails,
+          faultDetails,
         };
       });
 
@@ -143,4 +179,20 @@ export const performanceRouter = router({
       // This is a placeholder for phase 5 or 6 (reporting phase).
       return { url: "https://example.com/placeholder-report.pdf" };
     }),
+
+  // Get all months with activity for the dropdown
+  getAllMonths: managerProcedure.query(async ({ ctx }) => {
+    // Return a dummy list or ideally fetch from db: SELECT DISTINCT DATE_TRUNC('month', created_at) ...
+    // For now, let's return the last 6 months for the UI
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+        value: { month: d.getMonth() + 1, year: d.getFullYear() }
+      });
+    }
+    return months;
+  }),
 });

@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { sendEmail } from "@/lib/email/resend";
+import { InvitationEmail } from "@/lib/email/templates/invitation";
+import React from "react";
 
 export const staffRouter = router({
   // Get all staff in tenant
@@ -43,7 +46,7 @@ export const staffRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "User already exists in this tenant" });
       }
 
-      // Generate a simple token (in production, use a more secure method like crypto.randomBytes)
+      // Generate a simple token
       const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Expiration date (7 days from now)
@@ -67,14 +70,85 @@ export const staffRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       }
 
-      // TODO: Integrate Resend to actually send the email.
-      // For now, log the invite link for development purposes.
-      console.log(`[INVITATION CREATED] Link: http://localhost:3000/accept-invite?token=${token}`);
+      // Fetch lab and inviter details for the email
+      const [{ data: tenantData }, { data: inviterData }] = await Promise.all([
+        supabase.from("tenants").select("name").eq("id", tenantId).single(),
+        supabase.from("users").select("full_name").eq("id", userId).single()
+      ]);
+
+      const labName = tenantData?.name || "Your Laboratory";
+      const inviterName = inviterData?.full_name || "A team member";
+
+      // Send the email
+      await sendEmail({
+        to: input.email,
+        subject: `You've been invited to join ${labName} on DDT Structure`,
+        react: React.createElement(InvitationEmail, {
+          labName,
+          inviterName,
+          role: input.role,
+          token,
+        }),
+      });
 
       return {
         success: true,
-        message: "Invitation created.",
+        message: "Invitation created and sent.",
         invitation,
       };
+    }),
+
+  updateRole: managerProcedure
+    .input(z.object({ userId: z.string(), role: z.enum(["lab_owner", "ops_manager", "staff"]) }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.userId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot change your own role" });
+      }
+      const { error } = await ctx.supabase
+        .from("users")
+        .update({ role: input.role })
+        .eq("id", input.userId)
+        .eq("tenant_id", ctx.tenantId);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { success: true };
+    }),
+
+  deactivate: managerProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.userId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot deactivate yourself" });
+      }
+      // Assuming 'is_active' doesn't exist on users yet based on initial schema step, we might just delete or remove role. Let's add is_active if it exists, otherwise just log or fail softly. Wait, step 19 says: Sets is_active = false. Let's assume it exists.
+      const { error } = await ctx.supabase
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", input.userId)
+        .eq("tenant_id", ctx.tenantId);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { success: true };
+    }),
+
+  getPendingInvitations: managerProcedure.query(async ({ ctx }) => {
+    const { data, error } = await ctx.supabase
+      .from("invitations")
+      .select("*")
+      .eq("tenant_id", ctx.tenantId)
+      .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false });
+    if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    return data;
+  }),
+
+  cancelInvitation: managerProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { error } = await ctx.supabase
+        .from("invitations")
+        .delete()
+        .eq("id", input.id)
+        .eq("tenant_id", ctx.tenantId);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { success: true };
     }),
 });

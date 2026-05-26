@@ -30,10 +30,10 @@ export default function NewProjectPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate({
-      clientName: formData.clientName,
+      client_name: formData.clientName,
       address: formData.address,
-      siteDate: formData.siteDate,
-      numberOfFloors: formData.numberOfFloors ? parseInt(formData.numberOfFloors) : undefined,
+      site_date: formData.siteDate,
+      number_of_floors: formData.numberOfFloors ? parseInt(formData.numberOfFloors) : 1,
     });
   };
 

@@ -86,8 +86,14 @@ export default function DashboardPage() {
               <EmptyState
                 title="No active projects"
                 description="Create a new project to start tracking your pipeline."
-                actionLabel="New Project"
-                onAction={() => window.location.assign("/projects/new")}
+                action={
+                  <button 
+                    onClick={() => window.location.assign("/projects/new")}
+                    className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors"
+                  >
+                    New Project
+                  </button>
+                }
               />
             ) : (
               <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
@@ -101,7 +107,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {projects?.items?.map((project) => (
+                    {projects?.items?.map((project: { id: string; ndt_code: string; client_name: string; address: string; site_date: string; status: string }) => (
                       <tr key={project.id} className="hover:bg-secondary/20 transition-colors">
                         <td className="px-4 py-3">
                           <NdtCode code={project.ndt_code} />

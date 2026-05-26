@@ -12,7 +12,7 @@ import { Filter, Plus } from "lucide-react";
 export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const { data: projectsData, isLoading } = trpc.projects.list.useQuery({
-    page,
+    cursor: (page - 1) * 20,
     limit: 20,
   });
 
@@ -47,8 +47,14 @@ export default function ProjectsPage() {
           <EmptyState
             title="No projects found"
             description="You don't have any active projects. Create one to get started."
-            actionLabel="Create Project"
-            onAction={() => window.location.assign("/projects/new")}
+            action={
+              <button 
+                onClick={() => window.location.assign("/projects/new")}
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors"
+              >
+                Create Project
+              </button>
+            }
           />
         </div>
       ) : (
@@ -66,7 +72,7 @@ export default function ProjectsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {projectsData.items.map((project) => (
+                {projectsData.items.map((project: { id: string; ndt_code: string; client_name: string; address: string; site_date: string; status: string }) => (
                   <tr
                     key={project.id}
                     className="hover:bg-secondary/30 transition-colors group"
@@ -101,10 +107,10 @@ export default function ProjectsPage() {
           </div>
           
           {/* Pagination Controls */}
-          {projectsData.totalPages > 1 && (
+          {Math.ceil((projectsData.totalCount || 0) / 20) > 1 && (
             <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-secondary/20">
               <span className="text-sm text-muted-foreground">
-                Page {page} of {projectsData.totalPages}
+                Page {page} of {Math.ceil((projectsData.totalCount || 0) / 20)}
               </span>
               <div className="flex gap-2">
                 <button
@@ -115,8 +121,8 @@ export default function ProjectsPage() {
                   Previous
                 </button>
                 <button
-                  onClick={() => setPage((p) => Math.min(projectsData.totalPages, p + 1))}
-                  disabled={page === projectsData.totalPages}
+                  onClick={() => setPage((p) => Math.min(Math.ceil((projectsData.totalCount || 0) / 20), p + 1))}
+                  disabled={page === Math.ceil((projectsData.totalCount || 0) / 20)}
                   className="px-3 py-1 text-sm border border-border rounded hover:bg-secondary disabled:opacity-50 transition-colors"
                 >
                   Next
