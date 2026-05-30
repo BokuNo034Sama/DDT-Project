@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function createTRPCContext() {
   const supabase = createClient();
-
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -16,7 +15,7 @@ export async function createTRPCContext() {
     };
   }
 
-  // Decode JWT to get custom claims added by our hook
+  // Decode JWT to get custom claims added by our database hook
   const jwt = JSON.parse(
     Buffer.from(session.access_token.split(".")[1], "base64").toString()
   );
@@ -27,7 +26,7 @@ export async function createTRPCContext() {
       | "lab_owner"
       | "ops_manager"
       | "staff") || null;
-
+      
   const tenantId = (jwt.tenant_id as string) || null;
 
   return {
