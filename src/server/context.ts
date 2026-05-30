@@ -15,19 +15,35 @@ export async function createTRPCContext() {
     };
   }
 
-  // Decode JWT to get custom claims added by our database hook
+  // Decode JWT to hunt down the custom claims
   const jwt = JSON.parse(
     Buffer.from(session.access_token.split(".")[1], "base64").toString()
   );
 
+  // Check all possible locations where Supabase might place your hook data
+  const rawRole = 
+    jwt.app_metadata?.role || 
+    jwt.user_metadata?.role || 
+    (jwt.role !== "authenticated" ? jwt.role : null);
+
+  const rawTenantId = 
+    jwt.app_metadata?.tenant_id || 
+    jwt.tenant_id || 
+    null;
+
   const role =
-    (jwt.role as
+    (rawRole as
       | "super_admin"
       | "lab_owner"
       | "ops_manager"
       | "staff") || null;
       
-  const tenantId = (jwt.tenant_id as string) || null;
+  const tenantId = (rawTenantId as string) || null;
+
+  // Logging this so we can see the exact token contents in Vercel if it fails
+  console.log("=== BACKEND AUTH CHECK ===");
+  console.log("Final Extracted Role:", role);
+  console.log("Final Extracted Tenant:", tenantId);
 
   return {
     supabase,
