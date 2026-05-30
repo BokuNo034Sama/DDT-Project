@@ -2,11 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function createTRPCContext() {
   const supabase = createClient();
+  
+  // 1. Use getUser() to securely ping the Supabase Auth server (Fixes the warning)
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return {
       supabase,
       userId: null,
@@ -15,41 +17,19 @@ export async function createTRPCContext() {
     };
   }
 
-  // Decode JWT to hunt down the custom claims
-  const jwt = JSON.parse(
-    Buffer.from(session.access_token.split(".")[1], "base64").toString()
-  );
-
-  // Check all possible locations where Supabase might place your hook data
-  const rawRole = 
-    jwt.app_metadata?.role || 
-    jwt.user_metadata?.role || 
-    (jwt.role !== "authenticated" ? jwt.role : null);
-
-  const rawTenantId = 
-    jwt.app_metadata?.tenant_id || 
-    jwt.tenant_id || 
-    null;
-
-  const role =
-    (rawRole as
-      | "super_admin"
-      | "lab_owner"
-      | "ops_manager"
-      | "staff") || null;
-      
-  const tenantId = (rawTenantId as string) || null;
-
-  // Logging this so we can see the exact token contents in Vercel if it fails
-  console.log("=== BACKEND AUTH CHECK ===");
-  console.log("Final Extracted Role:", role);
-  console.log("Final Extracted Tenant:", tenantId);
+  // 2. Fetch the absolute source of truth directly from your database
+  // This completely bypasses all cookie caching and JWT hook issues!
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role, tenant_id")
+    .eq("id", user.id)
+    .single();
 
   return {
     supabase,
-    userId: session.user.id,
-    tenantId,
-    role,
+    userId: user.id,
+    tenantId: profile?.tenant_id || null,
+    role: (profile?.role as "super_admin" | "lab_owner" | "ops_manager" | "staff") || null,
   };
 }
 
