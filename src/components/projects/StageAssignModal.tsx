@@ -41,7 +41,7 @@ export function StageAssignModal({
   const utils = trpc.useUtils();
   const assignMutation = trpc.stages.assign.useMutation({
     onSuccess: (data) => {
-      const assignedUser = staffList?.find((u) => u.id === selectedStaffId);
+      const assignedUser = staffList?.find((u: any) => u.id === selectedStaffId);
       const nameStr = assignedUser ? assignedUser.full_name : "Unassigned";
 
       toast({
@@ -127,8 +127,8 @@ export function StageAssignModal({
                   -- Keep Unassigned / Remove Staff --
                 </option>
                 {staffList
-                  ?.filter((member) => member.is_active !== false)
-                  .map((member) => (
+                  ?.filter((member: any) => member.is_active !== false)
+                  .map((member: any) => (
                     <option key={member.id} value={member.id} className="bg-ddt-surface">
                       {member.full_name} ({member.role.replace("_", " ")})
                     </option>
