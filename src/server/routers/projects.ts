@@ -57,8 +57,22 @@ export const projectsRouter = router({
         .from("projects")
         .select(`
           *,
-          project_stage_assignments (*),
-          site_visits (*)
+          project_stage_assignments (
+            *,
+            assigned_user:users!project_stage_assignments_assigned_to_fkey (id, full_name, role)
+          ),
+          site_visits (
+            *,
+            staff_user:users!site_visits_staff_id_fkey (id, full_name, role)
+          ),
+          proof_reviews (
+            *,
+            reviewer_user:users!proof_reviews_reviewed_by_fkey (id, full_name, role)
+          ),
+          status_history (
+            *,
+            changed_by_user:users!status_history_changed_by_fkey (id, full_name, role)
+          )
         `)
         .eq("id", input.id)
         .eq("tenant_id", tenantId)
@@ -199,4 +213,48 @@ export const projectsRouter = router({
 
       return { success: true };
     }),
+
+  // Edit existing project details
+  update: managerProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        client_name: z.string().min(1),
+        client_email: z.string().email().optional().or(z.literal("")),
+        client_phone: z.string().optional().or(z.literal("")),
+        address: z.string().min(1),
+        number_of_floors: z.number().min(0),
+        connection: z.string().optional().or(z.literal("")),
+        site_date: z.string(), // ISO date string
+        device: z.string().optional().or(z.literal("")),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, tenantId } = ctx;
+      const { id, ...data } = input;
+      const { data: updated, error } = await supabase
+        .from("projects")
+        .update({
+          client_name: data.client_name,
+          client_email: data.client_email || null,
+          client_phone: data.client_phone || null,
+          address: data.address,
+          number_of_floors: data.number_of_floors,
+          connection: data.connection || null,
+          site_date: data.site_date,
+          device: data.device || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return updated;
+    }),
 });
+

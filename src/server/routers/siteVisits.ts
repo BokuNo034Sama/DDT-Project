@@ -48,4 +48,22 @@ export const siteVisitsRouter = router({
 
       return data;
     }),
+
+  // Remove staff site attendance
+  remove: managerProcedure
+    .input(z.object({ siteVisitId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, tenantId } = ctx;
+      const { error } = await supabase
+        .from("site_visits")
+        .delete()
+        .eq("id", input.siteVisitId)
+        .eq("tenant_id", tenantId);
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return { success: true };
+    }),
 });

@@ -3,6 +3,40 @@ import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 export const stagesRouter = router({
+  // Get active stage assignments for current user
+  getMyStages: protectedProcedure.query(async ({ ctx }) => {
+    const { supabase, tenantId, userId } = ctx;
+
+    const { data, error } = await supabase
+      .from("project_stage_assignments")
+      .select(`
+        *,
+        project:projects (
+          id,
+          ndt_code,
+          client_name,
+          status,
+          address,
+          site_date
+        ),
+        assigned_by_user:users!project_stage_assignments_assigned_by_fkey (
+          id,
+          full_name,
+          role
+        )
+      `)
+      .eq("assigned_to", userId)
+      .eq("tenant_id", tenantId)
+      .in("status", ["pending", "in_progress"])
+      .order("assigned_at", { ascending: false });
+
+    if (error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    }
+
+    return data;
+  }),
+
   // Assign a stage to a staff member
   assign: managerProcedure
     .input(
