@@ -8,7 +8,13 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/accept-invite");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
-  const isPublicRoute = isAuthPage || isApiRoute;
+  const isLandingPage = request.nextUrl.pathname === "/";
+  const isPublicRoute = isAuthPage || isApiRoute || isLandingPage;
+
+  // If user is logged in and visiting the landing page, redirect to dashboard
+  if (user && isLandingPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
 
   // If user is not logged in and trying to access a protected route
   if (!user && !isPublicRoute) {

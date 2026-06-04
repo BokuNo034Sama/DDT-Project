@@ -22,7 +22,6 @@ export default async function AcceptInviteSuccessPage() {
   }
 
   const firstName = userProfile.first_name.split(" ")[0] || "there";
-  // @ts-ignore - Supabase type narrowing issue
   const labName = userProfile.tenants?.name || "your new lab";
   const role = userProfile.role;
 

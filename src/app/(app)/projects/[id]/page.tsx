@@ -15,9 +15,12 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const { id } = params;
   const { data: project, isLoading, error } = trpc.projects.getById.useQuery({ id });
 
+  const title = isLoading ? "Loading Project..." : project?.client_name;
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
+        <TopBar title={title} />
         <LoadingSkeleton type="detail" />
       </div>
     );
@@ -26,6 +29,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   if (error || !project) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
+        <TopBar title="Project Not Found" />
         <EmptyState
           title="Project Not Found"
           description="The project you are looking for does not exist or you don't have permission to view it."
@@ -44,7 +48,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <TopBar title={project.client_name} />
+      <TopBar title={title} />
       
       {/* Back to Projects */}
       <div className="flex items-center">

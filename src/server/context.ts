@@ -28,6 +28,7 @@ export async function createTRPCContext() {
   return {
     supabase,
     userId: user.id,
+    userEmail: user.email || null,
     tenantId: profile?.tenant_id || null,
     role: (profile?.role as "super_admin" | "lab_owner" | "ops_manager" | "staff") || null,
   };

@@ -216,7 +216,7 @@ export const projectsRouter = router({
     }),
 
   // Edit existing project details
-  update: managerProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -231,8 +231,36 @@ export const projectsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const { supabase, tenantId, role } = ctx;
       const { id, ...data } = input;
+
+      // If user is staff, they can only edit client_email, client_phone, device, and connection.
+      if (role === "staff") {
+        const { data: existing, error: fetchError } = await supabase
+          .from("projects")
+          .select("client_name, address, number_of_floors, site_date")
+          .eq("id", id)
+          .eq("tenant_id", tenantId)
+          .single();
+
+        if (fetchError || !existing) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+        }
+
+        // Compare dates in MS to ensure they represent the same day
+        const existingTime = new Date(existing.site_date).getTime();
+        const inputTime = new Date(data.site_date).getTime();
+
+        if (
+          existing.client_name !== data.client_name ||
+          existing.address !== data.address ||
+          existing.number_of_floors !== data.number_of_floors ||
+          existingTime !== inputTime
+        ) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Staff are not allowed to edit core project details." });
+        }
+      }
+
       const { data: updated, error } = await supabase
         .from("projects")
         .update({

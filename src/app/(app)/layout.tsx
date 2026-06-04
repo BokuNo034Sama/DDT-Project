@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { redirect } from "next/navigation";
+import { SubscriptionGate } from "@/components/billing/SubscriptionGate";
 
 export default async function AppLayout({
   children,
@@ -23,7 +24,9 @@ export default async function AppLayout({
       <div className="flex flex-1 flex-col overflow-hidden min-h-screen">
         <TopBar />
         <main className="flex-1 overflow-y-auto bg-ddt-bg pb-16 md:pb-0">
-          {children}
+          <SubscriptionGate profile={session.profile}>
+            {children}
+          </SubscriptionGate>
         </main>
       </div>
       <InstallBanner />

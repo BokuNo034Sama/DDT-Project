@@ -26,10 +26,8 @@ import {
   Mail,
   Share2,
   Edit2,
-  X,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -137,15 +135,13 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
               {project.client_name}
             </h1>
           </div>
-          {isManager && (
-            <Button
-              onClick={handleOpen}
-              className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
-            >
-              <Edit2 className="w-4 h-4" />
-              <span>Edit Details</span>
-            </Button>
-          )}
+          <Button
+            onClick={handleOpen}
+            className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
+          >
+            <Edit2 className="w-4 h-4" />
+            <span>Edit Details</span>
+          </Button>
         </div>
 
         {/* Info Grid */}
@@ -240,7 +236,9 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
               Edit Project Details
             </DialogTitle>
             <DialogDescription className="text-ddt-muted text-xs">
-              Update the specifications and contact information for project {project.ndt_code}.
+              {!isManager 
+                ? `Update contact and device information for project ${project.ndt_code}.`
+                : `Update the specifications and contact information for project ${project.ndt_code}.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -254,6 +252,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
                   onChange={(e) => setClientName(e.target.value)}
                   className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
                   required
+                  disabled={!isManager}
                 />
               </div>
 
@@ -266,6 +265,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
                   onChange={(e) => setSiteDate(e.target.value)}
                   className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
                   required
+                  disabled={!isManager}
                 />
               </div>
             </div>
@@ -278,6 +278,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
                 onChange={(e) => setAddress(e.target.value)}
                 className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
                 required
+                disabled={!isManager}
               />
             </div>
 
@@ -292,6 +293,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
                   onChange={(e) => setNumberOfFloors(Number(e.target.value))}
                   className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
                   required
+                  disabled={!isManager}
                 />
               </div>
 

@@ -30,6 +30,7 @@ const config: Config = {
       fontFamily: {
         syne: ["var(--font-syne)"],
         sans: ["var(--font-dm-sans)"],
+        inter: ["var(--font-inter)"],
         mono: ["var(--font-jetbrains-mono)"],
       },
     },

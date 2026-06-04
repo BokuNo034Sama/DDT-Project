@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 
 function RegisterContent() {
@@ -62,9 +63,13 @@ function RegisterContent() {
       {/* Left Panel - Hero */}
       <div className="hidden lg:flex w-1/2 bg-[#3B82F6] flex-col relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#3B82F6]/20 to-[#1d4ed8]/40 z-10" />
-        <div className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay">
-           {/* Image component would go here */}
-        </div>
+        <Image
+          src="/images/hero_visual.png"
+          alt="DDT Structure Hero"
+          fill
+          className="object-cover opacity-80 mix-blend-overlay"
+          priority
+        />
         
         <div className="z-20 mt-auto p-12 space-y-4">
           <div className="flex items-center space-x-3 mb-6">

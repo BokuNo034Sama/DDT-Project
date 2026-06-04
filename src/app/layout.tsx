@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Syne, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Syne, DM_Sans, JetBrains_Mono, Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
@@ -17,6 +17,12 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
   weight: ["400", "500"],
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -47,6 +53,7 @@ export default function RootLayout({
       "antialiased",
       syne.variable,
       dmSans.variable,
+      inter.variable,
       jetbrainsMono.variable
     )}>
       <body className="font-sans">

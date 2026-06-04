@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
 import { TaskCard } from "./TaskCard";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { ClipboardList, AlertTriangle } from "lucide-react";
 
@@ -111,10 +110,21 @@ export function StaffDashboard({ userName }: StaffDashboardProps) {
         </h2>
 
         {taskCount === 0 ? (
-          <EmptyState
-            title="Awaiting Orders"
-            description="You don't have any pending or in-progress tasks assigned to you. Stand by for your next operational assignment."
-          />
+          <div className="flex flex-col items-center justify-center py-16 px-8 text-center rounded-[24px] border border-ddt-border bg-ddt-surface relative overflow-hidden">
+            {/* Connection Banner */}
+            <div className="w-full max-w-sm bg-[#0D1F3C] text-[#60A5FA] border border-[#1E3A5F] rounded-full py-2.5 px-4 mb-8 text-sm font-semibold flex items-center justify-center gap-2 animate-pulse select-none">
+              <span className="w-2 h-2 bg-[#60A5FA] rounded-full animate-ping" />
+              <span>🕒 System Status: Active & Connected</span>
+            </div>
+
+            <h3 className="text-xl font-bold font-syne mb-2 text-ddt-text uppercase tracking-wide">
+              Awaiting Orders
+            </h3>
+            
+            <p className="text-ddt-muted text-sm max-w-md mb-2 leading-relaxed font-sans">
+              You don&apos;t have any pending or in-progress tasks assigned to your profile. The local application is securely synchronized with the central laboratory command tower and will trigger real-time push alerts as soon as an inspection sequence is routed to your ID.
+            </p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {activeTasks.map((task: any) => (
