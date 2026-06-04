@@ -8,8 +8,21 @@ export type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 export type StageStatus =
   Database["public"]["Tables"]["project_stage_assignments"]["Row"]["status"];
 
-export type Project = Database["public"]["Tables"]["projects"]["Row"] & {
-  stage_assignments?: StageAssignment[];
+export type Project = Database["public"]["Tables"]["projects"]["Row"];
+
+export type ProjectWithRelations = Project & {
+  project_stage_assignments?: (StageAssignment & {
+    assigned_user: { id: string; full_name: string; role: string } | null;
+  })[];
+  site_visits?: (SiteVisit & {
+    staff_user: { id: string; full_name: string; role: string } | null;
+  })[];
+  proof_reviews?: (ProofReview & {
+    reviewer_user: { id: string; full_name: string; role: string } | null;
+  })[];
+  status_history?: (Database["public"]["Tables"]["status_history"]["Row"] & {
+    changed_by_user: { id: string; full_name: string; role: string } | null;
+  })[];
 };
 
 export type StageAssignment =

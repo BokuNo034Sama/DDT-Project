@@ -117,7 +117,7 @@ export function StaffDashboard({ userName }: StaffDashboardProps) {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeTasks.map((task) => (
+            {activeTasks.map((task: any) => (
               <TaskCard key={task.id} assignment={task as any} />
             ))}
           </div>

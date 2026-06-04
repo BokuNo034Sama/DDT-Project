@@ -31,8 +31,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { ProjectWithRelations } from "@/types";
+
 interface ProjectHeaderProps {
-  project: any; // Type-safe fields from projects router
+  project: ProjectWithRelations;
   onUpdateSuccess?: () => void;
 }
 
@@ -73,7 +75,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then((res) => {
+    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
       const user = res.data.user;
       setRole((user?.app_metadata?.role as string) || null);
     });
@@ -129,7 +131,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <NdtCode code={project.ndt_code} className="text-xl md:text-2xl font-mono tracking-wider" />
-              <StatusChip status={project.status} />
+              <StatusChip status={project.status as any} />
             </div>
             <h1 className="text-2xl md:text-3xl font-syne font-bold text-ddt-text tracking-tight uppercase">
               {project.client_name}

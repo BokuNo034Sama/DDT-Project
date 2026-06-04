@@ -24,8 +24,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { ProjectWithRelations } from "@/types";
+
 interface PipelineBarProps {
-  project: any;
+  project: ProjectWithRelations;
 }
 
 export function PipelineBar({ project }: PipelineBarProps) {
@@ -37,7 +39,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then((res) => {
+    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
       const user = res.data.user;
       setRole((user?.app_metadata?.role as string) || null);
     });
@@ -107,7 +109,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
   // Proof reviews & faults calculations
   const proofReviews = project.proof_reviews || [];
-  const failedReviews = proofReviews.filter((r: any) => r.result === "fail");
+  const failedReviews = proofReviews.filter((r) => r.result === "fail");
   const faultCount = failedReviews.length;
 
   return (
@@ -139,7 +141,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
         {/* 4-Stage Horizontal/Vertical Pipeline */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
           {stagesConfig.map((stage, index) => {
-            const assignment = project.project_stage_assignments?.find((a: any) => a.stage === stage.id);
+            const assignment = project.project_stage_assignments?.find((a) => a.stage === stage.id);
             const displayStatus = getStageDisplayStatus(stage.id, assignment);
             const isCompleted = displayStatus === "completed";
             const isFailed = displayStatus === "failed";
@@ -271,7 +273,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
             Proofread Review History
           </h3>
           <div className="space-y-4">
-            {proofReviews.map((review: any) => {
+            {proofReviews.map((review) => {
               const isPass = review.result === "pass";
               return (
                 <div
@@ -332,7 +334,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
           projectId={project.id}
           stage={assignStage}
           currentAssignedId={
-            project.project_stage_assignments?.find((a: any) => a.stage === assignStage)?.assigned_to
+            project.project_stage_assignments?.find((a) => a.stage === assignStage)?.assigned_to
           }
         />
       )}

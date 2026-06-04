@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { calculateEfficiencyScore } from "../utils/efficiency";
 
 export const projectsRouter = router({
   // Get paginated projects for the user's tenant
@@ -256,5 +257,68 @@ export const projectsRouter = router({
 
       return updated;
     }),
+
+  // Dashboard summary data
+  getDashboardData: managerProcedure.query(async ({ ctx }) => {
+    const { supabase, tenantId } = ctx;
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const [
+      { count: activeCount },
+      { count: awaitingProofread },
+      { count: completedThisMonth },
+      { data: recentProjects },
+      { data: activeAssignments },
+    ] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .not("status", "in", '("report_delivered","report_verified")'),
+      supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "report_done"),
+      supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "report_delivered")
+        .gte("updated_at", startOfMonth)
+        .lte("updated_at", endOfMonth),
+      supabase
+        .from("projects")
+        .select("id, ndt_code, client_name, address, status, site_date, created_at")
+        .eq("tenant_id", tenantId)
+        .not("status", "in", '("report_delivered","report_verified")')
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("project_stage_assignments")
+        .select(`
+          *,
+          project:projects(id, ndt_code, client_name, status),
+          assigned_user:users!project_stage_assignments_assigned_to_fkey(id, full_name, role)
+        `)
+        .eq("tenant_id", tenantId)
+        .eq("status", "in_progress")
+        .order("started_at", { ascending: false })
+        .limit(10),
+    ]);
+
+    return {
+      stats: {
+        activeCount: activeCount ?? 0,
+        awaitingProofread: awaitingProofread ?? 0,
+        completedThisMonth: completedThisMonth ?? 0,
+      },
+      recentProjects: recentProjects ?? [],
+      activeAssignments: activeAssignments ?? [],
+    };
+  }),
 });
 

@@ -7,11 +7,12 @@ import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 import { EmptyState } from "../ui/EmptyState";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PerformancePage() {
   const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
   
   const now = new Date();
   const defaultMonth = { month: now.getMonth() + 1, year: now.getFullYear() };
@@ -24,15 +25,37 @@ export default function PerformancePage() {
   const { data: months, isLoading: loadingMonths } = trpc.performance.getAllMonths.useQuery();
   const { data: performanceData, isLoading: loadingData } = trpc.performance.monthly.useQuery(currentQuery);
 
-  const exportPdfMutation = trpc.performance.exportPdf.useMutation({
-    onSuccess: (data) => {
-      toast({ title: "Report generated", description: "Your PDF is ready for download." });
-      window.open(data.url, "_blank");
-    },
-    onError: (err) => {
-      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/reports/performance-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentQuery),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error ?? "PDF generation failed");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const { month, year } = currentQuery;
+      a.href = url;
+      a.download = `performance-report-${year}-${String(month).padStart(2, "0")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "PDF downloaded", description: "Your performance report is ready." });
+    } catch (err) {
+      toast({
+        title: "Export failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
     }
-  });
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -61,11 +84,14 @@ export default function PerformancePage() {
           <Button 
             variant="outline" 
             className="border-ddt-accent text-ddt-accent hover:bg-ddt-accent hover:text-ddt-bg"
-            onClick={() => exportPdfMutation.mutate(currentQuery)}
-            disabled={exportPdfMutation.isPending || loadingData || !performanceData?.length}
+            onClick={handleExportPdf}
+            disabled={isExporting || loadingData || !performanceData?.length}
           >
-            <Download className="w-4 h-4 mr-2" />
-            {exportPdfMutation.isPending ? "Generating..." : "Export PDF"}
+            {isExporting ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+            ) : (
+              <><Download className="w-4 h-4 mr-2" />Export PDF</>
+            )}
           </Button>
         </div>
       </div>

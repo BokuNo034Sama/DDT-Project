@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { NotificationPanel } from "./NotificationPanel";
 
 export function TopBar() {
   const pathname = usePathname();
@@ -24,23 +24,13 @@ export function TopBar() {
           id="sync-status-slot"
           className="hidden md:flex text-ddt-faint items-center gap-2 text-xs border-l border-ddt-border pl-4"
         >
-          {/* Wired in Step 41 */}
           <RefreshCw className="w-3 h-3" />
           <span>Synced</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
-        <div id="notification-bell-slot">
-          {/* Placeholder for NotificationBell, wired in STEP 26 */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-ddt-muted hover:text-ddt-accent h-9 w-9"
-          >
-            <Bell className="w-5 h-5" />
-          </Button>
-        </div>
+        <NotificationPanel />
         <div id="topbar-action-slot">
           {/* Slot for primary CTA button from PageShell */}
         </div>

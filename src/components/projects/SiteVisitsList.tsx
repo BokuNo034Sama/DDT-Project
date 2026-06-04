@@ -10,8 +10,10 @@ import { UserPill } from "@/components/ui/UserPill";
 import { CalendarDays, Layers, Plus, Trash2, Loader2, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { ProjectWithRelations } from "@/types";
+
 interface SiteVisitsListProps {
-  project: any;
+  project: ProjectWithRelations;
 }
 
 export function SiteVisitsList({ project }: SiteVisitsListProps) {
@@ -22,7 +24,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then((res) => {
+    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
       const user = res.data.user;
       setRole((user?.app_metadata?.role as string) || null);
     });
@@ -90,7 +92,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
           </div>
         ) : (
           <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-            {visits.map((visit: any) => {
+            {visits.map((visit) => {
               const staffName = visit.staff_user?.full_name || "Unknown Technician";
               const initials = staffName
                 .split(" ")

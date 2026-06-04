@@ -24,7 +24,14 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "DDT Structure",
-  description: "Multi-tenant SaaS for NDT laboratories",
+  description: "Non-destructive testing project management and report pipeline for NDT laboratories.",
+  manifest: "/manifest.json",
+  themeColor: "#E8A020",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "DDT Structure",
+  },
 };
 
 export default function RootLayout({

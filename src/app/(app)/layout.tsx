@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth/get-session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { redirect } from "next/navigation";
 
 export default async function AppLayout({
@@ -25,6 +26,7 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+      <InstallBanner />
     </div>
   );
 }

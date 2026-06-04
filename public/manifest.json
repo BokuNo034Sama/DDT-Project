@@ -1,0 +1,26 @@
+{
+  "name": "DDT Structure",
+  "short_name": "DDT",
+  "description": "Non-destructive testing project management and report pipeline for DDT Structure Ltd.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#E8A020",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "lang": "en-GB"
+}
