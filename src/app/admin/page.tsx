@@ -37,7 +37,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-ddt-border">
-              {tenants?.map((tenant) => (
+              {tenants?.map((tenant: any) => (
                 <tr key={tenant.id} className="hover:bg-ddt-bg/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-ddt-text">{tenant.name}</td>
                   <td className="px-4 py-3 text-ddt-muted">

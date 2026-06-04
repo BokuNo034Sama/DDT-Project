@@ -59,7 +59,7 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
-          {projectsData.items.some(p => p.is_sample) && (
+          {projectsData.items.some((p: { is_sample?: boolean }) => p.is_sample) && (
             <div className="bg-[#A3E635]/10 border-b border-[#A3E635]/30 p-4 flex items-center justify-center">
               <p className="text-sm font-medium text-[#1A1917]">
                 <span className="font-bold text-[#3B82F6]">Welcome to your sandbox!</span> We&apos;ve added a sample project so you can explore the pipeline immediately.

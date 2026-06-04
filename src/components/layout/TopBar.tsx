@@ -1,28 +1,47 @@
 "use client";
 
+import { useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { NotificationPanel } from "./NotificationPanel";
 import { useOfflineStore } from "@/stores/offline-store";
 import { WifiOff, Loader2 } from "lucide-react";
 
-export function TopBar() {
+export function TopBar({ title }: { title?: string }) {
   const pathname = usePathname();
+  const { isOnline, isSyncing, topBarTitle, setTopBarTitle } = useOfflineStore();
+
+  // Sync title prop to store
+  useEffect(() => {
+    if (title) {
+      setTopBarTitle(title);
+    }
+    return () => {
+      if (title) {
+        setTopBarTitle(null);
+      }
+    };
+  }, [title, setTopBarTitle]);
+
+  // If this instance is just used to set the title (inside page.tsx), return null
+  if (title) {
+    return null;
+  }
 
   // Basic title inference from pathname
   const segments = pathname.split("/").filter(Boolean);
   const rawTitle = segments[segments.length - 1] || "Dashboard";
-  const title =
+  const defaultTitle =
     rawTitle.charAt(0).toUpperCase() +
     rawTitle.slice(1).replace(/-/g, " ");
 
-  const { isOnline, isSyncing, pendingQueueLength } = useOfflineStore();
+  const displayTitle = topBarTitle || defaultTitle;
 
   return (
     <header className="h-[52px] border-b border-ddt-border flex items-center justify-between px-4 md:px-6 bg-ddt-bg/80 backdrop-blur-md sticky top-0 z-30">
       <div className="flex items-center gap-4">
         <h1 className="text-md md:text-lg font-bold text-ddt-text font-syne truncate max-w-[150px] md:max-w-none">
-          {title}
+          {displayTitle}
         </h1>
         <div
           id="sync-status-slot"

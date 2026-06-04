@@ -7,6 +7,7 @@ import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { PipelineBar } from "@/components/projects/PipelineBar";
 import { SiteVisitsList } from "@/components/projects/SiteVisitsList";
 import { StatusHistory } from "@/components/projects/StatusHistory";
+import { TopBar } from "@/components/layout/TopBar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -43,6 +44,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <TopBar title={project.client_name} />
+      
       {/* Back to Projects */}
       <div className="flex items-center">
         <Link
