@@ -120,7 +120,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
 
   return (
     <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 relative overflow-hidden transition-all duration-300 hover:border-ddt-border-strong">
-      {/* Absolute top decorative amber glow border */}
+      {/* Absolute top decorative Sky Blue glow border */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-ddt-accent/20 via-ddt-accent to-ddt-accent/20" />
 
       <div className="flex flex-col gap-6 md:gap-8">

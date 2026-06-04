@@ -19,7 +19,7 @@ export function SyncIndicator() {
       className={cn(
         "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border transition-all duration-500",
         isOffline && "bg-destructive/10 text-destructive-foreground border-destructive/20",
-        isSyncing && "bg-amber-500/10 text-amber-500 border-amber-500/20",
+        isSyncing && "bg-sky-500/10 text-sky-500 border-sky-500/20",
         !isOffline && !isSyncing && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
       )}
     >
@@ -28,7 +28,7 @@ export function SyncIndicator() {
           className={cn(
             "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
             isOffline && "bg-destructive-foreground",
-            isSyncing && "bg-amber-500",
+            isSyncing && "bg-sky-500",
             !isOffline && !isSyncing && "bg-emerald-500"
           )}
         />
@@ -36,7 +36,7 @@ export function SyncIndicator() {
           className={cn(
             "relative inline-flex rounded-full h-2 w-2",
             isOffline && "bg-destructive-foreground",
-            isSyncing && "bg-amber-500",
+            isSyncing && "bg-sky-500",
             !isOffline && !isSyncing && "bg-emerald-500"
           )}
         />

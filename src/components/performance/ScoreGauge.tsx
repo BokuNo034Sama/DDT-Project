@@ -15,7 +15,7 @@ export function ScoreGauge({ score }: { score: number }) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (animatedScore / 100) * circumference;
 
-  let color = "text-amber-500";
+  let color = "text-sky-500";
   if (score >= 80) color = "text-emerald-500";
   else if (score < 50) color = "text-red-500";
 

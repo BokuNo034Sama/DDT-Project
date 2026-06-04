@@ -80,7 +80,7 @@ export function InviteModal({ children }: { children: React.ReactNode }) {
             <Button 
               type="submit" 
               disabled={inviteMutation.isPending || !email}
-              className="bg-ddt-accent text-ddt-bg hover:bg-ddt-accent/90"
+              className="bg-ddt-lime text-black font-semibold hover:bg-ddt-lime/90"
             >
               {inviteMutation.isPending ? "Sending..." : "Send Invitation"}
             </Button>

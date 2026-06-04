@@ -39,7 +39,7 @@ export function StatusHistory({ project }: StatusHistoryProps) {
       case "sketch_done":
         return "text-purple-400";
       case "report_done":
-        return "text-amber-500";
+        return "text-sky-400";
       case "proof_ready":
         return "text-orange-400";
       case "report_uploaded":

@@ -184,7 +184,7 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
           <Button
             onClick={handleStart}
             disabled={isMutating}
-            className="w-full bg-ddt-accent hover:bg-ddt-accent/90 text-black font-semibold h-[48px] rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-ddt-accent/5"
+            className="w-full bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold h-[48px] rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-ddt-lime/5"
           >
             {isMutating ? (
               <span className="flex items-center gap-2">

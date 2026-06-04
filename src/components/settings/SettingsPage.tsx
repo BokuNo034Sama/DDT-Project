@@ -285,7 +285,7 @@ export function SettingsPage() {
               <div className="pt-2 flex justify-end">
                 <Button
                   type="submit"
-                  className="bg-ddt-accent text-black font-semibold hover:bg-ddt-accent/90 gap-2"
+                  className="bg-ddt-lime text-black font-semibold hover:bg-ddt-lime/90 gap-2"
                   disabled={updateMutation.isPending}
                 >
                   {updateMutation.isPending ? (
@@ -533,7 +533,7 @@ export function SettingsPage() {
 
               {/* Pro Plan */}
               <div className="bg-ddt-surface border-2 border-ddt-accent rounded-xl shadow-lg overflow-hidden flex flex-col justify-between relative">
-                <div className="absolute top-0 right-0 bg-ddt-accent text-black text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-bl-lg">
+                <div className="absolute top-0 right-0 bg-ddt-lime text-black text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-bl-lg">
                   Popular
                 </div>
 
@@ -587,7 +587,7 @@ export function SettingsPage() {
                         })
                       }
                       disabled={initializeBillingMutation.isPending}
-                      className="w-full bg-ddt-accent text-black hover:bg-ddt-accent/90 text-xs font-bold gap-2"
+                      className="w-full bg-ddt-lime text-black hover:bg-ddt-lime/90 text-xs font-bold gap-2"
                     >
                       {initializeBillingMutation.isPending ? "Initializing..." : "Subscribe to Pro"}
                       <ArrowRight className="w-3.5 h-3.5 text-black" />
@@ -656,7 +656,7 @@ export function SettingsPage() {
                   })
                 }
                 disabled={simulatePaymentMutation.isPending}
-                className="w-full bg-ddt-accent text-black font-bold hover:bg-ddt-accent/90"
+                className="w-full bg-ddt-lime text-black font-bold hover:bg-ddt-lime/90"
               >
                 {simulatePaymentMutation.isPending ? "Simulating..." : "Complete Simulated Payment"}
               </Button>

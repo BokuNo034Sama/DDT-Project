@@ -123,7 +123,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
           {(project.status === "report_done" || project.status === "proof_ready") && isManager && (
             <Button
               onClick={() => setIsProofOpen(true)}
-              className="bg-ddt-accent hover:bg-ddt-accent/90 text-black font-semibold text-xs py-1.5 px-3 rounded shadow-sm shadow-ddt-accent/10 transition-all duration-200"
+              className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded shadow-sm shadow-ddt-lime/10 transition-all duration-200"
             >
               Submit Proofread
             </Button>

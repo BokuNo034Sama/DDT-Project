@@ -79,7 +79,7 @@ const container = {
 };
 
 const h1 = {
-  color: "#F59E0B",
+  color: "#3B82F6",
   fontSize: "24px",
   fontWeight: "bold",
   margin: "0 0 24px",
@@ -106,7 +106,7 @@ const btnContainer = {
 };
 
 const button = {
-  backgroundColor: "#F59E0B",
+  backgroundColor: "#A3E635",
   borderRadius: "4px",
   color: "#0C1220",
   fontSize: "16px",

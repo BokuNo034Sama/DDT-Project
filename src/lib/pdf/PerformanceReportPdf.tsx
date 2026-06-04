@@ -13,7 +13,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-end",
     borderBottomWidth: 2,
-    borderBottomColor: "#E8A020",
+    borderBottomColor: "#3B82F6",
     paddingBottom: 10,
     marginBottom: 20,
   },
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   efficiencyScore: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#E8A020",
+    color: "#3B82F6",
   },
   footer: {
     position: "absolute",

@@ -67,7 +67,7 @@ export function InstallBanner() {
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={handleInstall}
-                className="px-3 py-1.5 bg-ddt-accent text-black text-xs font-semibold rounded-lg hover:bg-ddt-accent/90 transition-all"
+                className="px-3 py-1.5 bg-ddt-lime text-black text-xs font-semibold rounded-lg hover:bg-ddt-lime/90 transition-all"
               >
                 Install App
               </button>

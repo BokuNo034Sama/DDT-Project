@@ -13,7 +13,7 @@
     --popover: #141C2E;
     --popover-foreground: #E8EAF0;
 
-    --primary: #F59E0B;
+    --primary: #3B82F6;
     --primary-foreground: #0C1220;
 
     --secondary: #1C2640;
@@ -22,15 +22,15 @@
     --muted: #1C2640;
     --muted-foreground: #8892A4;
 
-    --accent: #2A1F05;
-    --accent-foreground: #F59E0B;
+    --accent: #1E3A8A;
+    --accent-foreground: #3B82F6;
 
     --destructive: #2E0A0A;
     --destructive-foreground: #F87171;
 
     --border: #2A3550;
     --input: #1A2235;
-    --ring: #F59E0B;
+    --ring: #3B82F6;
 
     --radius: 0.5rem;
 
@@ -51,9 +51,9 @@
     --status-sketch-done-text: #A78BFA;
     --status-sketch-done-border: #2D1F6E;
 
-    --status-report-done-bg: #2A1F05;
-    --status-report-done-text: #F59E0B;
-    --status-report-done-border: #4A3510;
+    --status-report-done-bg: #1E3A8A;
+    --status-report-done-text: #3B82F6;
+    --status-report-done-border: #1E40AF;
 
     --status-proof-ready-bg: #2A1505;
     --status-proof-ready-text: #FB923C;

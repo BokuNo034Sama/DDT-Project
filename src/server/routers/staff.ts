@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { sendEmail } from "@/lib/email/resend";
 import { InvitationEmail } from "@/lib/email/templates/invitation";
 import React from "react";
+import crypto from "crypto";
 
 export const staffRouter = router({
   // Get all staff in tenant
@@ -55,8 +56,12 @@ export const staffRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "User already exists in this tenant" });
       }
 
-      // Generate a simple token
-      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      if (!tenantId || !userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized context" });
+      }
+
+      // Generate a secure random token
+      const token = crypto.randomUUID();
       
       // Expiration date (7 days from now)
       const expiresAt = new Date();
@@ -88,17 +93,21 @@ export const staffRouter = router({
       const labName = tenantData?.name || "Your Laboratory";
       const inviterName = inviterData?.full_name || "A team member";
 
-      // Send the email
-      await sendEmail({
-        to: input.email,
-        subject: `You've been invited to join ${labName} on DDT Structure`,
-        react: React.createElement(InvitationEmail, {
-          labName,
-          inviterName,
-          role: input.role,
-          token,
-        }),
-      });
+      // Send the email (wrapped in try/catch so failures don't crash invitation flow)
+      try {
+        await sendEmail({
+          to: input.email,
+          subject: `You've been invited to join ${labName} on DDT Structure`,
+          react: React.createElement(InvitationEmail, {
+            labName,
+            inviterName,
+            role: input.role,
+            token,
+          }),
+        });
+      } catch (emailError) {
+        console.error("Email failed but invitation created:", emailError);
+      }
 
       return {
         success: true,

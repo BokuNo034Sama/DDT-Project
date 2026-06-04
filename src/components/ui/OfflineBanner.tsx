@@ -15,7 +15,7 @@ export function OfflineBanner() {
   return (
     <div 
       className={cn(
-        "bg-amber-500 text-black py-2.5 px-4 flex items-center justify-center gap-3 text-sm font-black uppercase tracking-tight shadow-lg z-[100] animate-in slide-in-from-top duration-500",
+        "bg-sky-500 text-black py-2.5 px-4 flex items-center justify-center gap-3 text-sm font-black uppercase tracking-tight shadow-lg z-[100] animate-in slide-in-from-top duration-500",
       )}
     >
       <div className="bg-black/10 p-1 rounded-full">

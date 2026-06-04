@@ -51,9 +51,9 @@ export default function StaffPage() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "super_admin": return "bg-red-900 text-red-100 border-red-700";
+      case "super_admin": return "bg-sky-950 text-sky-400 border-sky-500/20";
       case "lab_owner": return "bg-purple-900 text-purple-100 border-purple-700";
-      case "ops_manager": return "bg-amber-900 text-amber-100 border-amber-700";
+      case "ops_manager": return "bg-sky-950 text-sky-400 border-sky-500/20";
       default: return "bg-blue-900 text-blue-100 border-blue-700";
     }
   };
@@ -79,7 +79,7 @@ export default function StaffPage() {
           <p className="text-muted-foreground mt-1">Manage staff roles, view efficiency, and invite new members.</p>
         </div>
         <InviteModal>
-          <Button className="bg-ddt-accent text-ddt-bg hover:bg-ddt-accent/90">
+          <Button className="bg-ddt-lime text-black font-semibold hover:bg-ddt-lime/90">
             Invite Staff
           </Button>
         </InviteModal>

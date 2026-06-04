@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   title: "DDT Structure",
   description: "Non-destructive testing project management and report pipeline for NDT laboratories.",
   manifest: "/manifest.json",
-  themeColor: "#E8A020",
+  themeColor: "#3B82F6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

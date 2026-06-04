@@ -70,7 +70,7 @@ export function JITCodePrefixModal({ isOpen, tenantName }: JITCodePrefixModalPro
           <Button
             type="submit"
             disabled={updateTenantMutation.isPending || !prefix}
-            className="w-full bg-ddt-accent hover:bg-ddt-accent-dim text-black font-bold h-11"
+            className="w-full bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold h-11"
           >
             {updateTenantMutation.isPending ? "Saving..." : "Save Prefix"}
           </Button>

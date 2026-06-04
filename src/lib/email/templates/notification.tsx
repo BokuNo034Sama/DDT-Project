@@ -33,7 +33,7 @@ export const NotificationEmail = ({
   const previewText = `${title} - DDT Structure`;
   
   const isError = type === "proof_failed";
-  const headerColor = isError ? "#EF4444" : "#F59E0B";
+  const headerColor = isError ? "#EF4444" : "#3B82F6";
 
   return (
     <Html>
