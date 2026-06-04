@@ -165,20 +165,7 @@ export const performanceRouter = router({
       return reports;
     }),
 
-  // Export PDF - Stub for now
-  exportPdf: managerProcedure
-    .input(
-      z.object({
-        month: z.number().min(1).max(12),
-        year: z.number().min(2000),
-        staffId: z.string().uuid().optional(),
-      })
-    )
-    .mutation(async () => {
-      // PDF generation with @react-pdf/renderer is complex and runs server side.
-      // This is a placeholder for phase 5 or 6 (reporting phase).
-      return { url: "https://example.com/placeholder-report.pdf" };
-    }),
+
 
   // Get all months with activity for the dropdown
   getAllMonths: managerProcedure.query(async ({ ctx }) => {

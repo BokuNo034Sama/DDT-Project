@@ -6,6 +6,7 @@ import { acceptInvite } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArrowRight } from "lucide-react";
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -19,10 +20,10 @@ function AcceptInviteContent() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ddt-bg p-4 font-sans text-ddt-text">
-        <div className="text-center p-8 bg-ddt-surface border border-ddt-border rounded-xl">
+      <div className="flex min-h-screen items-center justify-center bg-white p-4 font-sans text-[#1A1917]">
+        <div className="text-center p-8 bg-white border border-[#D1D5DB] rounded-[24px]">
           <h1 className="text-red-500 font-bold text-xl mb-2">Invalid Link</h1>
-          <p className="text-ddt-muted">
+          <p className="text-[#6B6960]">
             This invitation link is malformed or missing.
           </p>
         </div>
@@ -48,72 +49,96 @@ function AcceptInviteContent() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/accept-invite/success");
     router.refresh();
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ddt-bg p-4">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-ddt-surface p-8 border border-ddt-border shadow-2xl">
-        <div className="text-center">
-          <h1 className="font-syne text-3xl font-bold text-ddt-accent">
-            Join the Team
-          </h1>
-          <p className="mt-2 text-ddt-muted text-sm italic font-sans">
-            Set your details to activate your laboratory account
+    <div className="flex min-h-screen bg-white">
+      {/* Left Panel - Hero */}
+      <div className="hidden lg:flex w-1/2 bg-[#3B82F6] flex-col relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#3B82F6]/20 to-[#1d4ed8]/40 z-10" />
+        <div className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay">
+           {/* Image component would go here */}
+        </div>
+        
+        <div className="z-20 mt-auto p-12 space-y-4">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-[#3B82F6] font-bold text-2xl font-syne">
+              D
+            </div>
+            <span className="text-white font-syne text-2xl font-bold tracking-tight">DDT Structure</span>
+          </div>
+          <p className="text-white text-[20px] font-sans font-normal leading-relaxed">
+            Engineering confidence. Report clarity.
           </p>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-ddt-text">
-                Full Name
-              </Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder="John Doe"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                className="bg-ddt-input border-ddt-border text-ddt-text focus:ring-ddt-accent"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                title="Set Password"
-                className="text-ddt-text"
-              >
-                Create Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Min 6 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-ddt-input border-ddt-border text-ddt-text focus:ring-ddt-accent"
-              />
-            </div>
+      {/* Right Panel - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12">
+        <div className="w-full max-w-md space-y-8">
+          <div className="space-y-2">
+            <h1 className="font-sans text-[40px] font-bold text-[#1A1917] tracking-tight leading-tight">
+              Set your password
+            </h1>
+            <p className="font-sans text-[16px] text-[#6B6960]">
+              Set your details to activate your laboratory account
+            </p>
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-md text-sm font-medium">
-              {error}
+          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-[#1A1917] font-medium">
+                  Full Name
+                </Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  title="Set Password"
+                  className="text-[#1A1917] font-medium"
+                >
+                  Create Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Min 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
+                />
+              </div>
             </div>
-          )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-ddt-accent hover:bg-ddt-accent-dim text-black font-bold h-11"
-          >
-            {loading ? "Activating Account..." : "Accept Invitation"}
-          </Button>
-        </form>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-[12px] text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#A3E635] hover:bg-[#90D028] text-[#1A1917] font-bold h-[52px] rounded-full transition-colors flex items-center justify-center space-x-2 text-[16px]"
+            >
+              <span>{loading ? "Activating Account..." : "Join the workspace"}</span>
+              {!loading && <ArrowRight className="w-5 h-5" />}
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -123,9 +148,9 @@ export default function AcceptInvitePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-ddt-bg p-4 font-sans text-ddt-text">
-          <div className="text-center p-8 bg-ddt-surface border border-ddt-border rounded-xl">
-            <p className="text-ddt-muted">Loading invitation...</p>
+        <div className="flex min-h-screen items-center justify-center bg-white p-4 font-sans text-[#1A1917]">
+          <div className="text-center p-8 bg-white border border-[#D1D5DB] rounded-[24px]">
+            <p className="text-[#6B6960]">Loading invitation...</p>
           </div>
         </div>
       }

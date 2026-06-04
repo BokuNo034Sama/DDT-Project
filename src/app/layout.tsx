@@ -3,6 +3,9 @@ import "./globals.css";
 import { Syne, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { TRPCProvider } from "@/lib/trpc/provider";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { OfflineProvider } from "@/components/pwa/OfflineProvider";
+import { Toaster } from "@/components/ui/toaster";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -48,7 +51,11 @@ export default function RootLayout({
     )}>
       <body className="font-sans">
         <TRPCProvider>
-          {children}
+          <OfflineProvider>
+            {children}
+            <InstallBanner />
+            <Toaster />
+          </OfflineProvider>
         </TRPCProvider>
       </body>
     </html>

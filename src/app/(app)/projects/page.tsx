@@ -59,6 +59,13 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+          {projectsData.items.some(p => p.is_sample) && (
+            <div className="bg-[#A3E635]/10 border-b border-[#A3E635]/30 p-4 flex items-center justify-center">
+              <p className="text-sm font-medium text-[#1A1917]">
+                <span className="font-bold text-[#3B82F6]">Welcome to your sandbox!</span> We&apos;ve added a sample project so you can explore the pipeline immediately.
+              </p>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-secondary/50 text-muted-foreground border-b border-border">
@@ -72,13 +79,20 @@ export default function ProjectsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {projectsData.items.map((project: { id: string; ndt_code: string; client_name: string; address: string; site_date: string; status: string }) => (
+                {projectsData.items.map((project: { id: string; ndt_code: string; client_name: string; address: string; site_date: string; status: string; is_sample?: boolean }) => (
                   <tr
                     key={project.id}
                     className="hover:bg-secondary/30 transition-colors group"
                   >
                     <td className="px-6 py-4">
-                      <NdtCode code={project.ndt_code} />
+                      <div className="flex items-center gap-2">
+                        <NdtCode code={project.ndt_code} />
+                        {project.is_sample && (
+                          <span className="px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] text-xs font-bold font-syne uppercase tracking-wider">
+                            Sample
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 font-medium text-foreground">
                       {project.client_name}

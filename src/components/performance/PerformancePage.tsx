@@ -26,32 +26,37 @@ export default function PerformancePage() {
   const { data: performanceData, isLoading: loadingData } = trpc.performance.monthly.useQuery(currentQuery);
 
   const handleExportPdf = async () => {
+    if (!performanceData) return;
     setIsExporting(true);
     try {
-      const response = await fetch("/api/reports/performance-pdf", {
+      const res = await fetch("/api/reports/performance-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentQuery),
+        body: JSON.stringify({
+          data: performanceData,
+          month: currentQuery.month,
+          year: currentQuery.year,
+        }),
       });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error ?? "PDF generation failed");
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to generate PDF");
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const { month, year } = currentQuery;
       a.href = url;
-      a.download = `performance-report-${year}-${String(month).padStart(2, "0")}.pdf`;
+      a.download = `performance-report-${currentQuery.year}-${currentQuery.month}.pdf`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "PDF downloaded", description: "Your performance report is ready." });
-    } catch (err) {
-      toast({
-        title: "Export failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({ title: "Report generated", description: "Your PDF has been downloaded." });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -87,11 +92,8 @@ export default function PerformancePage() {
             onClick={handleExportPdf}
             disabled={isExporting || loadingData || !performanceData?.length}
           >
-            {isExporting ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
-            ) : (
-              <><Download className="w-4 h-4 mr-2" />Export PDF</>
-            )}
+            <Download className="w-4 h-4 mr-2" />
+            {isExporting ? "Generating..." : "Export PDF"}
           </Button>
         </div>
       </div>

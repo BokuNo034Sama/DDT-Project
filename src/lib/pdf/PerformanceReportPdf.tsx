@@ -1,348 +1,182 @@
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Font,
-} from "@react-pdf/renderer";
+import React from "react";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
-// ── Styles ──────────────────────────────────────────────────────────────────
-const colors = {
-  bg: "#0d0d0d",
-  surface: "#141414",
-  raised: "#1a1a1a",
-  accent: "#E8A020",
-  text: "#f0f0f0",
-  muted: "#6b7280",
-  faint: "#374151",
-  emerald: "#34d399",
-  red: "#f87171",
-  border: "#2a2a2a",
-};
-
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   page: {
-    backgroundColor: colors.bg,
-    color: colors.text,
-    fontFamily: "Helvetica",
     padding: 40,
-    fontSize: 10,
+    fontFamily: "Helvetica",
+    backgroundColor: "#ffffff",
+    color: "#333333",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 32,
-    paddingBottom: 16,
-    borderBottom: `1px solid ${colors.border}`,
-  },
-  logo: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    color: colors.accent,
-    letterSpacing: 2,
-    textTransform: "uppercase",
-  },
-  headerRight: {
     alignItems: "flex-end",
+    borderBottomWidth: 2,
+    borderBottomColor: "#E8A020",
+    paddingBottom: 10,
+    marginBottom: 20,
   },
-  headerLabel: {
-    color: colors.muted,
-    fontSize: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#111111",
   },
-  headerValue: {
-    color: colors.text,
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    marginTop: 2,
+  subtitle: {
+    fontSize: 12,
+    color: "#666666",
   },
-  reportTitle: {
-    fontSize: 20,
-    fontFamily: "Helvetica-Bold",
-    color: colors.text,
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  reportSubtitle: {
-    fontSize: 9,
-    color: colors.muted,
-    marginBottom: 28,
-  },
-  staffCard: {
-    backgroundColor: colors.surface,
-    border: `1px solid ${colors.border}`,
+  section: {
+    marginBottom: 20,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: "#f9fafb",
   },
-  staffCardHeader: {
+  row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    paddingBottom: 10,
-    borderBottom: `1px solid ${colors.border}`,
+    marginBottom: 5,
   },
-  staffName: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: colors.text,
+  label: {
+    fontSize: 10,
+    color: "#6b7280",
+    fontWeight: "bold",
   },
-  staffRole: {
-    fontSize: 8,
-    color: colors.accent,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginTop: 2,
+  value: {
+    fontSize: 10,
+    color: "#111111",
   },
-  efficiencyBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  efficiencyText: {
-    fontSize: 14,
-    fontFamily: "Helvetica-Bold",
-    color: "#000000",
-  },
-  statsGrid: {
+  statBoxContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
+    justifyContent: "space-between",
+    marginTop: 10,
   },
   statBox: {
     flex: 1,
-    backgroundColor: colors.raised,
-    border: `1px solid ${colors.border}`,
+    alignItems: "center",
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
     borderRadius: 4,
-    padding: 8,
-  },
-  statLabel: {
-    fontSize: 7,
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    marginHorizontal: 5,
+    backgroundColor: "#ffffff",
   },
   statValue: {
-    fontSize: 14,
-    fontFamily: "Helvetica-Bold",
-    color: colors.text,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#111111",
   },
-  sectionTitle: {
+  statLabel: {
     fontSize: 8,
-    color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 8,
+    color: "#6b7280",
+    marginTop: 4,
   },
-  stageRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-    borderBottom: `0.5px solid ${colors.faint}`,
-  },
-  stageLabel: {
-    color: colors.text,
-    fontSize: 9,
-  },
-  stageValue: {
-    color: colors.accent,
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-  },
-  faultRow: {
-    backgroundColor: "#1f0a0a",
-    border: `0.5px solid #3f1515`,
-    borderRadius: 3,
-    padding: 6,
-    marginBottom: 4,
-  },
-  faultCode: {
-    fontSize: 8,
-    color: colors.red,
-    fontFamily: "Helvetica-Bold",
-  },
-  faultReason: {
-    fontSize: 7.5,
-    color: colors.muted,
-    marginTop: 2,
+  efficiencyScore: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#E8A020",
   },
   footer: {
     position: "absolute",
-    bottom: 24,
+    bottom: 30,
     left: 40,
     right: 40,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderTop: `0.5px solid ${colors.border}`,
-    paddingTop: 8,
-  },
-  footerText: {
-    fontSize: 7,
-    color: colors.faint,
+    fontSize: 8,
+    color: "#9ca3af",
+    textAlign: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    paddingTop: 10,
   },
 });
 
-// ── Component ────────────────────────────────────────────────────────────────
-interface PerformanceReport {
-  user: { id: string; full_name: string; role: string };
-  stats: {
-    stagesCompleted: number;
-    stagesBreakdown: {
-      analysis: number;
-      sketch: number;
-      report_writing: number;
-      proofreading: number;
-    };
-    avgCompletionHours: number;
-    faultCount: number;
-    siteVisitsCount: number;
-    efficiencyScore: number;
-  };
-  faultDetails: Array<{
-    id: string;
-    ndt_code: string;
-    failure_reason: string;
-    reviewed_at: string;
-  }>;
+interface PerformanceReportPdfProps {
+  data: any[];
+  month: number;
+  year: number;
 }
 
-interface Props {
-  reports: PerformanceReport[];
-  month: string; // e.g. "June 2025"
-  labName: string;
-}
-
-export function PerformanceReportPdf({ reports, month, labName }: Props) {
-  const generatedAt = new Date().toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+export const PerformanceReportPdf = ({ data, month, year }: PerformanceReportPdfProps) => {
+  const monthName = new Date(year, month - 1).toLocaleString("default", { month: "long" });
 
   return (
-    <Document
-      title={`Performance Report — ${month}`}
-      author={labName}
-      creator="DDT Structure"
-    >
-      <Page size="A4" style={s.page}>
-        {/* Header */}
-        <View style={s.header}>
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
           <View>
-            <Text style={s.logo}>DDT Structure</Text>
-            <Text style={{ color: colors.muted, fontSize: 8, marginTop: 2 }}>
-              {labName}
+            <Text style={styles.title}>Performance Report</Text>
+            <Text style={styles.subtitle}>
+              {monthName} {year}
             </Text>
           </View>
-          <View style={s.headerRight}>
-            <Text style={s.headerLabel}>Report Period</Text>
-            <Text style={s.headerValue}>{month}</Text>
-            <Text style={{ ...s.headerLabel, marginTop: 6 }}>Generated</Text>
-            <Text style={s.headerValue}>{generatedAt}</Text>
-          </View>
+          <Text style={{ fontSize: 10, color: "#9ca3af" }}>
+            Generated: {new Date().toLocaleDateString()}
+          </Text>
         </View>
 
-        <Text style={s.reportTitle}>Staff Performance Report</Text>
-        <Text style={s.reportSubtitle}>
-          Monthly efficiency metrics, stage completions, site visits and fault log for{" "}
-          {reports.length} team member{reports.length !== 1 ? "s" : ""}.
-        </Text>
-
-        {/* Staff Cards */}
-        {reports.map((report) => (
-          <View key={report.user.id} style={s.staffCard} wrap={false}>
-            {/* Card Header */}
-            <View style={s.staffCardHeader}>
-              <View>
-                <Text style={s.staffName}>{report.user.full_name}</Text>
-                <Text style={s.staffRole}>
-                  {report.user.role.replace(/_/g, " ")}
-                </Text>
-              </View>
-              <View style={s.efficiencyBadge}>
-                <Text style={s.efficiencyText}>
-                  {report.stats.efficiencyScore}%
-                </Text>
-              </View>
+        {data.map((report) => (
+          <View key={report.user.id} style={styles.section} wrap={false}>
+            <View style={styles.row}>
+              <Text style={{ fontSize: 16, fontWeight: "bold", color: "#111111" }}>
+                {report.user.full_name}
+              </Text>
+              <Text style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>
+                {report.user.role.replace("_", " ")}
+              </Text>
             </View>
 
-            {/* Stats Grid */}
-            <View style={s.statsGrid}>
-              <View style={s.statBox}>
-                <Text style={s.statLabel}>Stages Done</Text>
-                <Text style={s.statValue}>{report.stats.stagesCompleted}</Text>
+            <View style={styles.statBoxContainer}>
+              <View style={[styles.statBox, { marginLeft: 0 }]}>
+                <Text style={styles.efficiencyScore}>{report.stats.efficiencyScore}</Text>
+                <Text style={styles.statLabel}>Efficiency Score</Text>
               </View>
-              <View style={s.statBox}>
-                <Text style={s.statLabel}>Site Visits</Text>
-                <Text style={s.statValue}>{report.stats.siteVisitsCount}</Text>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{report.stats.stagesCompleted}</Text>
+                <Text style={styles.statLabel}>Tasks Completed</Text>
               </View>
-              <View style={s.statBox}>
-                <Text style={s.statLabel}>Avg Hours</Text>
-                <Text style={s.statValue}>
-                  {report.stats.avgCompletionHours.toFixed(1)}h
-                </Text>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{report.stats.avgCompletionHours.toFixed(1)}h</Text>
+                <Text style={styles.statLabel}>Avg Duration</Text>
               </View>
-              <View style={s.statBox}>
-                <Text style={s.statLabel}>Faults</Text>
-                <Text
-                  style={{
-                    ...s.statValue,
-                    color:
-                      report.stats.faultCount > 0 ? colors.red : colors.emerald,
-                  }}
-                >
+              <View style={[styles.statBox, { marginRight: 0 }]}>
+                <Text style={[styles.statValue, { color: report.stats.faultCount > 0 ? "#ef4444" : "#111111" }]}>
                   {report.stats.faultCount}
                 </Text>
+                <Text style={styles.statLabel}>Faults</Text>
               </View>
             </View>
-
-            {/* Stage Breakdown */}
-            <Text style={s.sectionTitle}>Stage Breakdown</Text>
-            {Object.entries(report.stats.stagesBreakdown).map(([stage, count]) => (
-              <View key={stage} style={s.stageRow}>
-                <Text style={s.stageLabel}>{stage.replace(/_/g, " ")}</Text>
-                <Text style={s.stageValue}>{count}</Text>
+            
+            <View style={{ marginTop: 15 }}>
+              <Text style={styles.label}>TASK BREAKDOWN:</Text>
+              <View style={{ flexDirection: "row", marginTop: 5 }}>
+                <Text style={styles.value}>Analysis: {report.stats.stagesBreakdown.analysis}  |  </Text>
+                <Text style={styles.value}>Sketch: {report.stats.stagesBreakdown.sketch}  |  </Text>
+                <Text style={styles.value}>Report Writing: {report.stats.stagesBreakdown.report_writing}  |  </Text>
+                <Text style={styles.value}>Proofreading: {report.stats.stagesBreakdown.proofreading}</Text>
               </View>
-            ))}
-
-            {/* Faults */}
-            {report.faultDetails.length > 0 && (
-              <>
-                <Text style={{ ...s.sectionTitle, color: colors.red }}>
-                  Fault Log ({report.faultDetails.length})
-                </Text>
-                {report.faultDetails.map((fault) => (
-                  <View key={fault.id} style={s.faultRow}>
-                    <Text style={s.faultCode}>{fault.ndt_code}</Text>
-                    {fault.failure_reason && (
-                      <Text style={s.faultReason}>{fault.failure_reason}</Text>
-                    )}
-                  </View>
-                ))}
-              </>
+            </View>
+            
+            {report.stats.siteVisitsCount > 0 && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.label}>SITE VISITS: {report.stats.siteVisitsCount}</Text>
+              </View>
             )}
           </View>
         ))}
 
-        {/* Footer */}
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>DDT Structure — Confidential</Text>
-          <Text
-            style={s.footerText}
-            render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
-            }
-          />
+        {data.length === 0 && (
+          <Text style={{ fontSize: 12, color: "#6b7280", textAlign: "center", marginTop: 50 }}>
+            No performance data available for this period.
+          </Text>
+        )}
+
+        <View style={styles.footer}>
+          <Text>DDT Structure • Confidential Laboratory Performance Report</Text>
         </View>
       </Page>
     </Document>
   );
-}
+};

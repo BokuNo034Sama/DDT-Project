@@ -3,33 +3,52 @@
 import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { initializeTenant } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-function LoginContent() {
+function RegisterContent() {
   const router = useRouter();
   const supabase = createClient();
+  const [labName, setLabName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // In a real app, we'd also pass labName to the backend here or store it in user metadata.
+    // For now we just create the auth user. The step 33C requires seeding the DB post-registration
+    // which should ideally be handled via a secure server action, but we will wire that up shortly.
+    
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          lab_name: labName,
+        }
+      }
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+    
+    // Seed sandbox and create tenant record
+    const initResult = await initializeTenant(labName);
+    
+    if (initResult.error) {
+      setError(initResult.error);
       setLoading(false);
       return;
     }
@@ -42,10 +61,9 @@ function LoginContent() {
     <div className="flex min-h-screen bg-white">
       {/* Left Panel - Hero */}
       <div className="hidden lg:flex w-1/2 bg-[#3B82F6] flex-col relative overflow-hidden">
-        {/* Placeholder for AI Hero Image - Will be replaced when we generate it */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#3B82F6]/20 to-[#1d4ed8]/40 z-10" />
         <div className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay">
-           {/* Image component would go here when we have the asset */}
+           {/* Image component would go here */}
         </div>
         
         <div className="z-20 mt-auto p-12 space-y-4">
@@ -66,15 +84,30 @@ function LoginContent() {
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2">
             <h1 className="font-sans text-[40px] font-bold text-[#1A1917] tracking-tight leading-tight">
-              Welcome back
+              Get started
             </h1>
             <p className="font-sans text-[16px] text-[#6B6960]">
-              Sign in to your DDT Structure workspace
+              Create your new lab workspace
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="mt-8 space-y-6">
+          <form onSubmit={handleRegister} className="mt-8 space-y-6">
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="labName" className="text-[#1A1917] font-medium">
+                  Company / Lab Name
+                </Label>
+                <Input
+                  id="labName"
+                  type="text"
+                  placeholder="StructoLab Ltd"
+                  value={labName}
+                  onChange={(e) => setLabName(e.target.value)}
+                  required
+                  className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-[#1A1917] font-medium">
                   Work Email
@@ -89,21 +122,19 @@ function LoginContent() {
                   className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
                 />
               </div>
+
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-[#1A1917] font-medium">
-                    Password
-                  </Label>
-                  <Link href="#" className="text-[14px] text-[#3B82F6] hover:underline font-medium">
-                    Forgot password?
-                  </Link>
-                </div>
+                <Label htmlFor="password" className="text-[#1A1917] font-medium">
+                  Password
+                </Label>
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Min 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={8}
                   className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
                 />
               </div>
@@ -120,14 +151,14 @@ function LoginContent() {
               disabled={loading}
               className="w-full bg-[#A3E635] hover:bg-[#90D028] text-[#1A1917] font-bold h-[52px] rounded-full transition-colors flex items-center justify-center space-x-2 text-[16px]"
             >
-              <span>{loading ? "Signing in..." : "Sign In"}</span>
+              <span>{loading ? "Creating..." : "Create your workspace"}</span>
               {!loading && <ArrowRight className="w-5 h-5" />}
             </Button>
             
             <p className="text-center text-[14px] text-[#6B6960] mt-6">
-              Don&apos;t have a workspace?{" "}
-              <Link href="/register" className="text-[#3B82F6] hover:underline font-medium">
-                Create one
+              Already have an account?{" "}
+              <Link href="/login" className="text-[#3B82F6] hover:underline font-medium">
+                Sign in
               </Link>
             </p>
           </form>
@@ -137,7 +168,7 @@ function LoginContent() {
   );
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <Suspense
       fallback={
@@ -148,7 +179,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginContent />
+      <RegisterContent />
     </Suspense>
   );
 }

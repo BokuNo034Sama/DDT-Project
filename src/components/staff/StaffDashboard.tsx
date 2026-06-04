@@ -112,8 +112,8 @@ export function StaffDashboard({ userName }: StaffDashboardProps) {
 
         {taskCount === 0 ? (
           <EmptyState
-            title="All Caught Up!"
-            description="You don't have any pending or in-progress tasks assigned to you. Enjoy the breather, or contact your laboratory supervisor for new assignments."
+            title="Awaiting Orders"
+            description="You don't have any pending or in-progress tasks assigned to you. Stand by for your next operational assignment."
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

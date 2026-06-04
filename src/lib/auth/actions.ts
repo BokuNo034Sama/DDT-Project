@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { seedSandboxForTenant } from "@/lib/onboarding/seed-sandbox";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -75,6 +77,64 @@ export async function acceptInvite(formData: FormData) {
 
   // 4. Delete invitation
   await supabase.from("invitations").delete().eq("id", invite.id);
+
+  return { success: true };
+}
+
+export async function initializeTenant(labName: string) {
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { error: "You must be signed in to initialize a workspace." };
+  }
+
+  // Use Admin client to bypass RLS since user doesn't have a tenant yet
+  const adminClient = createAdminClient();
+
+  // Check if user already exists
+  const { data: existingUser } = await adminClient
+    .from("users")
+    .select("id")
+    .eq("id", user.id)
+    .single();
+
+  if (existingUser) {
+    return { success: true }; // Already initialized
+  }
+
+  const slug = labName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  const { data: tenant, error: tenantError } = await adminClient
+    .from("tenants")
+    .insert({
+      name: labName,
+      slug: slug,
+      subscription_status: "trial",
+      code_prefix: "TEMP",
+    })
+    .select("id")
+    .single();
+
+  if (tenantError || !tenant) {
+    return { error: tenantError?.message || "Failed to create tenant" };
+  }
+
+  const { error: userError } = await adminClient.from("users").insert({
+    id: user.id,
+    tenant_id: tenant.id,
+    full_name: user.user_metadata?.full_name || "Lab Owner",
+    email: user.email!,
+    role: "lab_owner",
+    joined_at: new Date().toISOString(),
+  });
+
+  if (userError) {
+    return { error: userError.message };
+  }
+
+  // Seed Sandbox for the new tenant
+  await seedSandboxForTenant(tenant.id, adminClient);
 
   return { success: true };
 }

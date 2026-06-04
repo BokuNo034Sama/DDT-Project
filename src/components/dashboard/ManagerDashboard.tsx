@@ -10,9 +10,7 @@ import { UserPill } from "@/components/ui/UserPill";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  Activity,
   AlertCircle,
-  CheckCircle2,
   Users,
   ExternalLink,
   TrendingUp,

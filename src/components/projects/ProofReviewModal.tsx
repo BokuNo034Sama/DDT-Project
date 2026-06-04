@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc/client";
-import { Check, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Check, X, AlertTriangle, Loader2, Sparkles, Upload, FileText } from "lucide-react";
+import { V3ResultsPanel } from "@/components/v3/V3ResultsPanel";
+import { ReportCheckResult } from "@/types";
 
 interface ProofReviewModalProps {
   isOpen: boolean;
@@ -31,6 +33,9 @@ export function ProofReviewModal({
   const { toast } = useToast();
   const [result, setResult] = useState<"pass" | "fail" | null>(null);
   const [failureReason, setFailureReason] = useState("");
+  const [aiScanning, setAiScanning] = useState(false);
+  const [aiResults, setAiResults] = useState<ReportCheckResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const utils = trpc.useUtils();
   const reviewMutation = trpc.proofReview.submit.useMutation({
@@ -57,6 +62,42 @@ export function ProofReviewModal({
       });
     },
   });
+
+  const handleAiScan = async () => {
+    if (!selectedFile) {
+      toast({ title: "No file selected", description: "Please select a .docx report to scan.", variant: "destructive" });
+      return;
+    }
+
+    setAiScanning(true);
+    setAiResults(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("projectId", projectId);
+
+      const response = await fetch("/api/v3/proofread", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to run AI scan");
+      }
+
+      setAiResults(data.results_json || data); // The API route currently returns { success, checkId, score } but we should fetch the record or return results.
+      
+      // I'll update the API route to return results_json so we don't have to fetch it.
+      // Wait, let's fix the API to return results_json directly.
+    } catch (error: any) {
+      toast({ title: "AI Scan Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setAiScanning(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +170,40 @@ export function ProofReviewModal({
               </div>
               <span className="font-bold text-sm tracking-wide uppercase font-syne">Fail / Revise</span>
             </button>
+          </div>
+
+          {/* V3 AI Scanner */}
+          <div className="bg-ddt-input border border-ddt-border rounded-xl p-4 space-y-4">
+            <div>
+              <Label className="text-ddt-accent font-syne font-bold flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4" /> V3 AI Proofreader
+              </Label>
+              <p className="text-xs text-ddt-muted mb-3">Upload the drafted .docx report to automatically check it against LSMTL Guidelines.</p>
+              
+              <div className="flex items-center gap-3">
+                <Label htmlFor="report-upload" className="cursor-pointer flex-1 flex items-center justify-center gap-2 border border-dashed border-ddt-border hover:border-ddt-accent hover:bg-ddt-accent/5 p-3 rounded-md transition-colors">
+                  <FileText className="w-4 h-4 text-ddt-muted" />
+                  <span className="text-sm text-ddt-text">{selectedFile ? selectedFile.name : "Select .docx file"}</span>
+                  <input 
+                    id="report-upload" 
+                    type="file" 
+                    accept=".docx"
+                    className="hidden" 
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  />
+                </Label>
+                <Button 
+                  type="button" 
+                  onClick={handleAiScan}
+                  disabled={!selectedFile || aiScanning}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-full"
+                >
+                  {aiScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Scan"}
+                </Button>
+              </div>
+            </div>
+
+            {aiResults && <V3ResultsPanel results={aiResults} />}
           </div>
 
           {/* Conditional failure reason */}

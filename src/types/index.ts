@@ -39,3 +39,35 @@ export type ProfileWithTenant = User & {
 
 export type SubscriptionStatus =
   Database["public"]["Tables"]["tenants"]["Row"]["subscription_status"];
+
+export type AICheckStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface BaseCheckResult {
+  passed: boolean;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface ReportCheckResult {
+  boiler_plate: BaseCheckResult;
+  rebound_hammer: BaseCheckResult;
+  rebar_depth: BaseCheckResult;
+  core_compressive: BaseCheckResult;
+  upv_testing: BaseCheckResult;
+  carbonation: BaseCheckResult;
+  crack_measurement: BaseCheckResult;
+  conclusion: BaseCheckResult;
+}
+
+export interface ReportCheck {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  triggered_by: string;
+  status: AICheckStatus;
+  started_at: string;
+  completed_at?: string;
+  overall_score?: number;
+  results_json?: ReportCheckResult;
+  error_message?: string;
+}
