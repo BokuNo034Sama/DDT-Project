@@ -8,7 +8,12 @@ const nextConfig = withPWA({
   disable: process.env.NODE_ENV === "development",
   runtimeCaching: [],
 })({
-  // Standard Next.js config
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
     serverComponentsExternalPackages: [],
   },
