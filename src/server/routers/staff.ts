@@ -23,6 +23,15 @@ export const staffRouter = router({
     return data;
   }),
 
+  // Get current user profile and role
+  getMe: protectedProcedure.query(async ({ ctx }) => {
+    return {
+      userId: ctx.userId,
+      tenantId: ctx.tenantId,
+      role: ctx.role,
+    };
+  }),
+
   // Invite a new staff member
   invite: managerProcedure
     .input(

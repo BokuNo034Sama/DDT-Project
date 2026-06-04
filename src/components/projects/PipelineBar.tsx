@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { createClient } from "@/lib/supabase/client";
 import { UserPill } from "@/components/ui/UserPill";
 import { Button } from "@/components/ui/button";
 import { StageAssignModal } from "./StageAssignModal";
@@ -31,19 +30,12 @@ interface PipelineBarProps {
 }
 
 export function PipelineBar({ project }: PipelineBarProps) {
-  const [role, setRole] = useState<string | null>(null);
-  
   // Modals visibility state
   const [assignStage, setAssignStage] = useState<"analysis" | "sketch" | "report_writing" | "proofreading" | null>(null);
   const [isProofOpen, setIsProofOpen] = useState(false);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
-      const user = res.data.user;
-      setRole((user?.app_metadata?.role as string) || null);
-    });
-  }, []);
+  const { data: me } = trpc.staff.getMe.useQuery();
+  const role = me?.role;
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 
