@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function createTRPCContext() {
   const supabase = createClient();
+  
+  // 1. Use getUser() to securely ping the Supabase Auth server (Fixes the warning)
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -15,20 +17,19 @@ export async function createTRPCContext() {
     };
   }
 
-  // Extract tenantId and role from user app_metadata (Supabase custom claims)
-  const tenantId = (user.app_metadata.tenant_id as string) || null;
-  const role =
-    (user.app_metadata.role as
-      | "super_admin"
-      | "lab_owner"
-      | "ops_manager"
-      | "staff") || null;
+  // 2. Fetch the absolute source of truth directly from your database
+  // This completely bypasses all cookie caching and JWT hook issues!
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role, tenant_id")
+    .eq("id", user.id)
+    .single();
 
   return {
     supabase,
     userId: user.id,
-    tenantId,
-    role,
+    tenantId: profile?.tenant_id || null,
+    role: (profile?.role as "super_admin" | "lab_owner" | "ops_manager" | "staff") || null,
   };
 }
 
