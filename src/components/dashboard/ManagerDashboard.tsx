@@ -106,7 +106,7 @@ export function ManagerDashboard({ userName }: ManagerDashboardProps) {
         <StatCard
           label="Completed This Month"
           value={stats?.completedThisMonth?.toString() ?? "0"}
-          trend={{ direction: "up", text: "Delivered" }}
+          trend={{ direction: "down", text: "Delivered" }}
         />
       </div>
 
