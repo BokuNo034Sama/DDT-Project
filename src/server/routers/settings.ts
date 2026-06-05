@@ -250,24 +250,54 @@ export const settingsRouter = router({
 
   // Get subscription status
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
+    // Force Next.js to not cache this query
+    try {
+      const { unstable_noStore } = await import("next/cache");
+      unstable_noStore();
+    } catch (e) {
+      // Ignore if outside Next context
+    }
+
     const { supabase, tenantId } = ctx;
 
-    // Try querying the subscriptions table first
+    // 1. Fetch the tenant created_at date for fallback calculations
+    let tenantCreatedAt: string | null = null;
     try {
-      const { data: sub, error: subError } = await (supabase as any)
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("created_at")
+        .eq("id", tenantId)
+        .single();
+      if (tenant) {
+        tenantCreatedAt = tenant.created_at;
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    // 2. Query the subscriptions table (most recent row)
+    try {
+      const { data: subs, error: subError } = await (supabase as any)
         .from("subscriptions")
         .select("status, plan_name, trial_ends_at")
         .eq("tenant_id", tenantId)
-        .maybeSingle();
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const sub = subs?.[0];
 
       if (sub && !subError) {
-        const trialEndsAt = sub.trial_ends_at || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        // If subscription row exists -> use its status value (default to 'trial' if nullish)
+        const trialEndsAt = sub.trial_ends_at || (tenantCreatedAt 
+          ? new Date(new Date(tenantCreatedAt).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()
+          : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        );
         const nowTime = new Date().getTime();
         const trialTime = new Date(trialEndsAt).getTime();
         const daysRemaining = Math.max(0, Math.ceil((trialTime - nowTime) / (1000 * 60 * 60 * 24)));
 
         return {
-          status: sub.status || "trial",
+          status: sub.status ?? "trial",
           planName: (sub.plan_name as "starter" | "pro") || "starter",
           trialEndsAt,
           currentPeriodEnd: trialEndsAt,
@@ -275,33 +305,20 @@ export const settingsRouter = router({
         };
       }
     } catch (e) {
-      // Fail-soft: fallback to tenants table
+      // Ignore subscriptions table query error (e.g. if it doesn't exist yet)
     }
 
-    const { data: tenant, error } = await supabase
-      .from("tenants")
-      .select("subscription_status, created_at")
-      .eq("id", tenantId)
-      .single();
-
-    if (error || !tenant) {
-      return {
-        status: "trial",
-        planName: "starter" as const,
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        daysRemaining: 14,
-      };
-    }
-
-    const createdTime = new Date(tenant.created_at).getTime();
+    // 3. If NO subscription row found -> default to 'trial'
+    const trialEndsAt = tenantCreatedAt 
+      ? new Date(new Date(tenantCreatedAt).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    
     const nowTime = new Date().getTime();
-    const daysElapsed = Math.floor((nowTime - createdTime) / (1000 * 60 * 60 * 24));
-    const daysRemaining = Math.max(0, 14 - daysElapsed);
-    const trialEndsAt = new Date(createdTime + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const trialTime = new Date(trialEndsAt).getTime();
+    const daysRemaining = Math.max(0, Math.ceil((trialTime - nowTime) / (1000 * 60 * 60 * 24)));
 
     return {
-      status: tenant.subscription_status || "trial",
+      status: "trial",
       planName: "starter" as const,
       trialEndsAt,
       currentPeriodEnd: trialEndsAt,

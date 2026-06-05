@@ -6,13 +6,16 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function TrialBanner() {
-  const { data: subscription, isLoading } = trpc.settings.getSubscription.useQuery();
+  const { data: subscription, isLoading } = trpc.settings.getSubscription.useQuery(undefined, {
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
 
   console.log("getSubscription data:", subscription);
 
-  if (isLoading || !subscription || subscription.status !== "trial") {
-    return null;
-  }
+  if (isLoading) return null;
+  if (!subscription) return null;
+  if (subscription.status !== "trial") return null;
 
   const isUrgent = subscription.daysRemaining <= 7;
 
