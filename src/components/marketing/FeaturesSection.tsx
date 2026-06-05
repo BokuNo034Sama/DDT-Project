@@ -48,7 +48,7 @@ export function FeaturesSection() {
   ];
 
   return (
-    <section className="w-full bg-[#F8F9FA] py-20 md:py-28 px-4 sm:px-6 lg:px-8 border-y border-slate-100">
+    <section id="features" className="w-full bg-[#F8F9FA] py-20 md:py-28 px-4 sm:px-6 lg:px-8 border-y border-slate-100">
       <div className="max-w-7xl mx-auto space-y-12">
         {/* Title */}
         <div className="text-center space-y-4">

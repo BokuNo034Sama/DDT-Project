@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 export function TrialBanner() {
   const { data: subscription, isLoading } = trpc.settings.getSubscription.useQuery();
 
+  console.log("getSubscription data:", subscription);
+
   if (isLoading || !subscription || subscription.status !== "trial") {
     return null;
   }

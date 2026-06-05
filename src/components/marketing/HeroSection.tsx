@@ -1,16 +1,20 @@
-import fs from "fs";
-import path from "path";
-import Link from "next/link";
+"use client";
 
-export function HeroSection() {
-  let hasHeroVisual = false;
-  try {
-    hasHeroVisual = fs.existsSync(
-      path.join(process.cwd(), "public", "images", "hero_visual.png")
-    );
-  } catch {
-    // Fallback if environment is not Node
-  }
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export function HeroSection({ hasHeroVisual }: { hasHeroVisual: boolean }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    if (supabase?.auth) {
+      supabase.auth.getSession().then((res: any) => {
+        setIsAuthenticated(!!res?.data?.session);
+      });
+    }
+  }, []);
 
   const bgStyle = hasHeroVisual
     ? {
@@ -47,13 +51,13 @@ export function HeroSection() {
         {/* 4. Two CTA buttons side by side */}
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mt-10">
           <Link
-            href="/register"
+            href={isAuthenticated ? "/dashboard" : "/register"}
             className="inline-flex items-center justify-center bg-[#A3E635] hover:bg-[#8fd125] text-[#1a1a1a] px-8 py-4 rounded-full font-inter font-semibold text-base transition-colors duration-200"
           >
-            Start Free Trial →
+            {isAuthenticated ? "Go to Dashboard →" : "Start Free Trial →"}
           </Link>
           <a
-            href="#pricing"
+            href="#features"
             className="inline-flex items-center justify-center bg-transparent border-2 border-white/60 hover:bg-white/10 hover:border-white text-white px-8 py-4 rounded-full font-inter font-semibold text-base transition-colors duration-200"
           >
             See how it works
