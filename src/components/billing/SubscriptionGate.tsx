@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth/actions";
 import { ShieldAlert, LogOut, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 interface SubscriptionGateProps {
   profile: ProfileWithTenant | null;
@@ -13,11 +14,19 @@ interface SubscriptionGateProps {
 }
 
 export function SubscriptionGate({ profile, children }: SubscriptionGateProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const pathname = usePathname();
 
   const isInactive = profile?.tenant?.subscription_status === "inactive";
   const isLabOwner = profile?.role === "lab_owner" || profile?.role === "super_admin";
   const isSettingsPage = pathname === "/settings";
+
+  if (!mounted) return null;
 
   if (isInactive) {
     if (isLabOwner && isSettingsPage) {

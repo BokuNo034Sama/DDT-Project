@@ -12,7 +12,7 @@ interface OfflineStoreState {
 }
 
 export const useOfflineStore = create<OfflineStoreState>((set) => ({
-  isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+  isOnline: true,
   pendingQueueLength: 0,
   isSyncing: false,
   topBarTitle: null,

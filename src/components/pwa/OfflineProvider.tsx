@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useOfflineStore } from "@/stores/offline-store";
 import { initNetworkSync } from "@/lib/offline/sync";
 import { getPendingCount } from "@/lib/offline/queue";
 
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const { setOnline, setIsSyncing, setPendingQueueLength } = useOfflineStore();
 
   useEffect(() => {
+    setMounted(true);
     // Initial status checks
     setOnline(navigator.onLine);
 
@@ -42,6 +44,8 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       cleanupSync();
     };
   }, [setOnline, setIsSyncing, setPendingQueueLength]);
+
+  if (!mounted) return null;
 
   return <>{children}</>;
 }
