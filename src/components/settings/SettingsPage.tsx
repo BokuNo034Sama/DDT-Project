@@ -27,6 +27,7 @@ export function SettingsPage() {
 
   const utils = trpc.useUtils();
   const { data: tenant, isLoading } = trpc.settings.getTenant.useQuery();
+  const { data: subscription, isLoading: isLoadingSub } = trpc.settings.getSubscription.useQuery();
   const { data: me } = trpc.staff.getMe.useQuery();
   const role = me?.role || null;
 
@@ -72,6 +73,7 @@ export function SettingsPage() {
         description: "Your workspace subscription is now active.",
       });
       utils.settings.getTenant.invalidate();
+      utils.settings.getSubscription.invalidate();
       const url = new URL(window.location.href);
       url.searchParams.delete("billing");
       window.history.replaceState({}, "", url.pathname + url.search);
@@ -128,6 +130,7 @@ export function SettingsPage() {
     onSuccess: () => {
       toast({ title: "Payment Simulated", description: "Workspace subscription is now active." });
       utils.settings.getTenant.invalidate();
+      utils.settings.getSubscription.invalidate();
       setSimulateData(null);
       const url = new URL(window.location.href);
       url.searchParams.delete("billing_simulate");
@@ -149,6 +152,7 @@ export function SettingsPage() {
         variant: "destructive",
       });
       utils.settings.getTenant.invalidate();
+      utils.settings.getSubscription.invalidate();
     },
     onError: (err) => {
       toast({ title: "Cancellation failed", description: err.message, variant: "destructive" });
@@ -174,7 +178,7 @@ export function SettingsPage() {
 
   const isLabOwner = role === "lab_owner" || role === "super_admin";
 
-  if (isLoading) {
+  if (isLoading || isLoadingSub) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <LoadingSkeleton type="detail" rows={4} />
@@ -482,12 +486,12 @@ export function SettingsPage() {
                     </div>
                   </div>
                   <p className="text-xs text-ddt-muted leading-relaxed">
-                    Perfect for boutique local testing laboratories starting their digital operations pipeline.
+                    Perfect for small NDT labs getting started with digital operations.
                   </p>
                   <ul className="text-xs text-ddt-muted space-y-2 pt-2 border-t border-ddt-border">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span>Up to 5 staff members</span>
+                      <span>Up to 10 staff members</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
@@ -501,10 +505,11 @@ export function SettingsPage() {
                 </div>
 
                 <div className="p-6 bg-ddt-raised border-t border-ddt-border">
-                  {tenant?.subscription_status === "active" ? (
-                    <Button disabled className="w-full bg-ddt-border text-ddt-muted text-xs cursor-not-allowed">
-                      Plan Locked
-                    </Button>
+                  {subscription?.status === "active" && subscription?.planName === "starter" ? (
+                    <div className="flex items-center justify-center gap-2 bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 py-2 rounded-lg text-xs font-bold w-full">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>Current Active Plan</span>
+                    </div>
                   ) : (
                     <Button
                       onClick={() =>
@@ -517,7 +522,7 @@ export function SettingsPage() {
                       disabled={initializeBillingMutation.isPending}
                       className="w-full bg-ddt-raised border border-ddt-border text-ddt-text hover:bg-ddt-surface text-xs font-semibold gap-2"
                     >
-                      {initializeBillingMutation.isPending ? "Initializing..." : "Subscribe to Starter"}
+                      {initializeBillingMutation.isPending ? "Initializing..." : (subscription?.status === "active" ? "Downgrade to Starter" : "Subscribe to Starter")}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -547,27 +552,43 @@ export function SettingsPage() {
                   <ul className="text-xs text-ddt-muted space-y-2 pt-2 border-t border-ddt-border">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span>Unlimited staff and technicians</span>
+                      <span>Everything in Starter</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span>Real-time offline database sync</span>
+                      <span>Up to 50 staff members</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span className="font-semibold text-ddt-text">AI Structural proofreading audits</span>
+                      <span>AI-powered report proofreading</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span>Priority LSMTL reporting support</span>
+                      <span>LSMTL guideline compliance checks</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
+                      <span>V3 document error detection</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
+                      <span>Minor error auto-correction</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
+                      <span>Priority support</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
+                      <span>Advanced performance analytics</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="p-6 bg-ddt-raised border-t border-ddt-border">
-                  {tenant?.subscription_status === "active" ? (
-                    <div className="flex items-center justify-center gap-2 bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 py-2 rounded-lg text-xs font-bold">
-                      <CheckCircle2 className="w-4 h-4" />
+                  {subscription?.status === "active" && subscription?.planName === "pro" ? (
+                    <div className="flex items-center justify-center gap-2 bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 py-2 rounded-lg text-xs font-bold w-full">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       <span>Current Active Plan</span>
                     </div>
                   ) : (
@@ -582,7 +603,7 @@ export function SettingsPage() {
                       disabled={initializeBillingMutation.isPending}
                       className="w-full bg-ddt-lime text-black hover:bg-ddt-lime/90 text-xs font-bold gap-2"
                     >
-                      {initializeBillingMutation.isPending ? "Initializing..." : "Subscribe to Pro"}
+                      {initializeBillingMutation.isPending ? "Initializing..." : (subscription?.status === "active" ? "Upgrade to Pro" : "Subscribe to Pro")}
                       <ArrowRight className="w-3.5 h-3.5 text-black" />
                     </Button>
                   )}

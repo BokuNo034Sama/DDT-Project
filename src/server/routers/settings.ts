@@ -193,6 +193,22 @@ export const settingsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       }
 
+      // Try updating subscriptions table if it exists
+      try {
+        const planKey = input.planName.toLowerCase().includes("pro") ? "pro" : "starter";
+        await (supabase as any)
+          .from("subscriptions")
+          .upsert({
+            tenant_id: tenantId,
+            status: "active",
+            plan_name: planKey,
+            trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "tenant_id" });
+      } catch (e) {
+        // Ignore or fallback
+      }
+
       return { success: true, tenant: data };
     }),
 
@@ -212,6 +228,19 @@ export const settingsRouter = router({
       .select()
       .single();
 
+    // Try updating subscriptions table if it exists
+    try {
+      await (supabase as any)
+        .from("subscriptions")
+        .update({
+          status: "inactive",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("tenant_id", tenantId);
+    } catch (e) {
+      // Ignore or fallback
+    }
+
     if (error) {
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
     }
@@ -223,6 +252,32 @@ export const settingsRouter = router({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
     const { supabase, tenantId } = ctx;
 
+    // Try querying the subscriptions table first
+    try {
+      const { data: sub, error: subError } = await (supabase as any)
+        .from("subscriptions")
+        .select("status, plan_name, trial_ends_at")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (sub && !subError) {
+        const trialEndsAt = sub.trial_ends_at || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const nowTime = new Date().getTime();
+        const trialTime = new Date(trialEndsAt).getTime();
+        const daysRemaining = Math.max(0, Math.ceil((trialTime - nowTime) / (1000 * 60 * 60 * 24)));
+
+        return {
+          status: sub.status || "trial",
+          planName: (sub.plan_name as "starter" | "pro") || "starter",
+          trialEndsAt,
+          currentPeriodEnd: trialEndsAt,
+          daysRemaining,
+        };
+      }
+    } catch (e) {
+      // Fail-soft: fallback to tenants table
+    }
+
     const { data: tenant, error } = await supabase
       .from("tenants")
       .select("subscription_status, created_at")
@@ -232,6 +287,7 @@ export const settingsRouter = router({
     if (error || !tenant) {
       return {
         status: "trial",
+        planName: "starter" as const,
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         daysRemaining: 14,
@@ -246,6 +302,7 @@ export const settingsRouter = router({
 
     return {
       status: tenant.subscription_status || "trial",
+      planName: "starter" as const,
       trialEndsAt,
       currentPeriodEnd: trialEndsAt,
       daysRemaining,
