@@ -29,7 +29,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("offline", handleOffline);
 
     // Initialize sync behavior
-    const cleanupSync = initNetworkSync(async (syncedCount) => {
+    const cleanupSync = initNetworkSync(async () => {
       setIsSyncing(true);
       // Let the sync finish before turning off syncing
       setTimeout(async () => {
