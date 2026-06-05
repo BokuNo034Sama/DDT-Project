@@ -288,40 +288,40 @@ export const projectsRouter = router({
 
   // Dashboard summary data
   getDashboardData: managerProcedure.query(async ({ ctx }) => {
-    const { supabase, tenantId } = ctx;
+    const { supabase } = ctx;
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
     const [
-      { count: activeCount },
-      { count: awaitingProofread },
-      { count: completedThisMonth },
-      { data: recentProjects },
-      { data: activeAssignments },
+      activeRes,
+      awaitingRes,
+      completedRes,
+      recentRes,
+      assignmentsRes,
     ] = await Promise.all([
       supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", ctx.tenantId)
         .not("status", "in", '("report_delivered","report_verified")'),
       supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", ctx.tenantId)
         .eq("status", "report_done"),
       supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", ctx.tenantId)
         .eq("status", "report_delivered")
         .gte("updated_at", startOfMonth)
         .lte("updated_at", endOfMonth),
       supabase
         .from("projects")
         .select("id, ndt_code, client_name, address, status, site_date, created_at")
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", ctx.tenantId)
         .not("status", "in", '("report_delivered","report_verified")')
         .order("created_at", { ascending: false })
         .limit(20),
@@ -332,20 +332,36 @@ export const projectsRouter = router({
           project:projects(id, ndt_code, client_name, status),
           assigned_user:users!project_stage_assignments_assigned_to_fkey(id, full_name, role)
         `)
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", ctx.tenantId)
         .eq("status", "in_progress")
         .order("started_at", { ascending: false })
         .limit(10),
     ]);
 
+    if (activeRes.error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Active count query failed: ${activeRes.error.message}` });
+    }
+    if (awaitingRes.error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Awaiting proofread query failed: ${awaitingRes.error.message}` });
+    }
+    if (completedRes.error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Completed this month query failed: ${completedRes.error.message}` });
+    }
+    if (recentRes.error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Recent projects query failed: ${recentRes.error.message}` });
+    }
+    if (assignmentsRes.error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Active assignments query failed: ${assignmentsRes.error.message}` });
+    }
+
     return {
       stats: {
-        activeCount: activeCount ?? 0,
-        awaitingProofread: awaitingProofread ?? 0,
-        completedThisMonth: completedThisMonth ?? 0,
+        activeCount: activeRes.count ?? 0,
+        awaitingProofread: awaitingRes.count ?? 0,
+        completedThisMonth: completedRes.count ?? 0,
       },
-      recentProjects: recentProjects ?? [],
-      activeAssignments: activeAssignments ?? [],
+      recentProjects: recentRes.data ?? [],
+      activeAssignments: assignmentsRes.data ?? [],
     };
   }),
 });

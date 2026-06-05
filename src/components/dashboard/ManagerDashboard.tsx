@@ -22,8 +22,14 @@ interface ManagerDashboardProps {
 }
 
 export function ManagerDashboard({ userName }: ManagerDashboardProps) {
+  useEffect(() => {
+    console.log("ManagerDashboard mounted for user:", userName);
+  }, [userName]);
+
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.projects.getDashboardData.useQuery();
+
+  console.log("ManagerDashboard render state:", { isLoading, error, hasData: !!data });
 
   const supabase = createClient();
 
