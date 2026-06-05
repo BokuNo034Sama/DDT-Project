@@ -102,14 +102,14 @@ export function StageAssignModal({
             <span>Assign Staff</span>
           </DialogTitle>
           <DialogDescription className="text-ddt-muted text-xs">
-            Choose a laboratory staff member to take responsibility for the **{getStageTitle(stage)}**.
+            Assign a qualified team member to take ownership of the **{getStageTitle(stage)}**.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleAssign} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="staff-select" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">
-              Select Staff Member
+              Assignee
             </Label>
             {loadingStaff ? (
               <div className="flex items-center gap-2 py-2 text-sm text-ddt-muted">
@@ -124,7 +124,7 @@ export function StageAssignModal({
                 className="w-full bg-ddt-input border border-ddt-border text-ddt-text rounded-md py-2.5 px-3 focus:outline-none focus:border-ddt-accent focus:ring-1 focus:ring-ddt-accent text-sm"
               >
                 <option value="unassigned" className="bg-ddt-surface">
-                  -- Keep Unassigned / Remove Staff --
+                  Unassigned
                 </option>
                 {staffList
                   ?.filter((member: any) => member.is_active !== false)

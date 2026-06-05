@@ -1,14 +1,15 @@
 import { cn } from "@/lib/utils";
 
 interface NdtCodeProps {
-  code: string;
+  code?: string;
   className?: string;
+  children?: React.ReactNode;
 }
 
 /**
  * Renders NDT code in JetBrains Mono font, amber colour.
  */
-export function NdtCode({ code, className }: NdtCodeProps) {
+export function NdtCode({ code, className, children }: NdtCodeProps) {
   return (
     <code
       className={cn(
@@ -16,7 +17,7 @@ export function NdtCode({ code, className }: NdtCodeProps) {
         className
       )}
     >
-      {code}
+      {children || code}
     </code>
   );
 }

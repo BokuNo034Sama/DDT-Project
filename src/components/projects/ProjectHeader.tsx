@@ -39,7 +39,9 @@ interface ProjectHeaderProps {
 export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+
+  const { data: me } = trpc.staff.getMe.useQuery();
+  const role = me?.role || null;
 
   // Form states
   const [clientName, setClientName] = useState(project.client_name || "");
@@ -70,14 +72,6 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
       });
     },
   });
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
-      const user = res.data.user;
-      setRole((user?.app_metadata?.role as string) || null);
-    });
-  }, []);
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 

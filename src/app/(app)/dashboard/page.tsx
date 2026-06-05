@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { StaffDashboard } from "@/components/staff/StaffDashboard";
 import { ManagerDashboard } from "@/components/dashboard/ManagerDashboard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 
 interface UserProfile {
   role: string;
@@ -57,7 +58,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <OnboardingChecklist />
       <ManagerDashboard userName={profile.full_name} />
     </div>
   );

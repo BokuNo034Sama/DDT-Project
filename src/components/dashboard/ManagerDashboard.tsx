@@ -67,8 +67,7 @@ export function ManagerDashboard({ userName }: ManagerDashboardProps) {
     );
   }
 
-  const stats = data?.stats;
-  const recentProjects = data?.recentProjects ?? [];
+  const activeProjects = data?.activeProjects ?? [];
   const activeAssignments = data?.activeAssignments ?? [];
 
   return (
@@ -93,24 +92,32 @@ export function ManagerDashboard({ userName }: ManagerDashboardProps) {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Active Projects"
-          value={stats?.activeCount?.toString() ?? "0"}
+          value={data?.activeCount?.toString() ?? "0"}
           trend={{ direction: "up", text: "In pipeline" }}
         />
         <StatCard
           label="Awaiting Proofread"
-          value={stats?.awaitingProofread?.toString() ?? "0"}
+          value={data?.awaitingProofread?.toString() ?? "0"}
           trend={{
-            direction: (stats?.awaitingProofread ?? 0) > 0 ? "up" : "down",
+            direction: (data?.awaitingProofread ?? 0) > 0 ? "up" : "down",
             text: "Needs review",
           }}
         />
         <StatCard
           label="Completed This Month"
-          value={stats?.completedThisMonth?.toString() ?? "0"}
+          value={data?.deliveredThisMonth?.toString() ?? "0"}
           trend={{ direction: "down", text: "Delivered" }}
+        />
+        <StatCard
+          label="Staff On Task"
+          value={data?.staffOnTask?.toString() ?? "0"}
+          trend={{
+            direction: (data?.staffOnTask ?? 0) > 0 ? "up" : "down",
+            text: "Active staff",
+          }}
         />
       </div>
 
@@ -129,11 +136,11 @@ export function ManagerDashboard({ userName }: ManagerDashboardProps) {
             </Link>
           </div>
 
-          {recentProjects.length === 0 ? (
+          {activeProjects.length === 0 ? (
             <div className="p-8">
               <EmptyState
-                title="No active projects"
-                description="Create a new project to start tracking your pipeline."
+                title="No active projects yet"
+                description="Create your first project →"
               />
             </div>
           ) : (
@@ -148,7 +155,7 @@ export function ManagerDashboard({ userName }: ManagerDashboardProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ddt-border/50">
-                  {recentProjects.map((project: any) => (
+                  {activeProjects.map((project: any) => (
                     <tr
                       key={project.id}
                       className="hover:bg-ddt-raised/30 transition-colors cursor-pointer"

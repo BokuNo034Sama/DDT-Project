@@ -16,6 +16,7 @@ import { signOut } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { ProfileWithTenant } from "@/types";
 import { User as AuthUser } from "@supabase/supabase-js";
+import { TrialBanner } from "@/components/billing/TrialBanner";
 
 interface SidebarProps {
   user: AuthUser | null;
@@ -76,6 +77,8 @@ export function Sidebar({ user, profile }: SidebarProps) {
             );
           })}
         </nav>
+
+        <TrialBanner />
 
         <div className="p-4 border-t border-ddt-border bg-ddt-surface">
           <div className="flex items-center gap-3 px-2 mb-4">

@@ -26,6 +26,7 @@ type FormDataType = z.infer<typeof formSchema>;
 export function NewProjectForm() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const { data: staffList } = trpc.staff.list.useQuery();
 
   const [formData, setFormData] = useState<FormDataType>({
     clientName: "",
@@ -94,6 +95,20 @@ export function NewProjectForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {staffList && staffList.length === 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 p-4 rounded-xl text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans animate-in fade-in duration-300">
+          <span>
+            💡 <strong>Note:</strong> You currently have no field staff onboarded to this workspace. Consider sending invitations to your team so you can assign them to site visits and stages once this project is created.
+          </span>
+          <Link
+            href="/staff"
+            className="shrink-0 inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold bg-amber-500 text-black hover:bg-amber-400 rounded-lg transition-colors font-sans"
+          >
+            Invite Staff
+          </Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Row 1: Client Name* | Site Date* */}
         <div className="col-span-1">

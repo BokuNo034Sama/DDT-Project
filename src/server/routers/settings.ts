@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, managerProcedure } from "../trpc";
+import { router, managerProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 export const settingsRouter = router({
@@ -217,5 +217,30 @@ export const settingsRouter = router({
     }
 
     return { success: true, tenant: data };
+  }),
+
+  // Get subscription status
+  getSubscription: protectedProcedure.query(async ({ ctx }) => {
+    const { supabase, tenantId } = ctx;
+
+    const { data: tenant, error } = await supabase
+      .from("tenants")
+      .select("subscription_status, created_at")
+      .eq("id", tenantId)
+      .single();
+
+    if (error || !tenant) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Tenant not found" });
+    }
+
+    const createdTime = new Date(tenant.created_at).getTime();
+    const nowTime = new Date().getTime();
+    const daysElapsed = Math.floor((nowTime - createdTime) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.max(0, 14 - daysElapsed);
+
+    return {
+      status: tenant.subscription_status || "trial",
+      daysLeft,
+    };
   }),
 });

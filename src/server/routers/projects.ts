@@ -331,37 +331,45 @@ export const projectsRouter = router({
           *,
           project:projects(id, ndt_code, client_name, status),
           assigned_user:users!project_stage_assignments_assigned_to_fkey(id, full_name, role)
-        `)
+        `, { count: "exact" })
         .eq("tenant_id", ctx.tenantId)
         .eq("status", "in_progress")
         .order("started_at", { ascending: false })
         .limit(10),
     ]);
 
-    if (activeRes.error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Active count query failed: ${activeRes.error.message}` });
-    }
-    if (awaitingRes.error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Awaiting proofread query failed: ${awaitingRes.error.message}` });
-    }
-    if (completedRes.error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Completed this month query failed: ${completedRes.error.message}` });
-    }
-    if (recentRes.error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Recent projects query failed: ${recentRes.error.message}` });
-    }
-    if (assignmentsRes.error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Active assignments query failed: ${assignmentsRes.error.message}` });
-    }
+    return {
+      activeCount: activeRes.error ? 0 : (activeRes.count ?? 0),
+      staffOnTask: assignmentsRes.error ? 0 : (assignmentsRes.count ?? 0),
+      awaitingProofread: awaitingRes.error ? 0 : (awaitingRes.count ?? 0),
+      deliveredThisMonth: completedRes.error ? 0 : (completedRes.count ?? 0),
+      activeProjects: recentRes.error ? [] : (recentRes.data ?? []),
+      activeAssignments: assignmentsRes.error ? [] : (assignmentsRes.data ?? []),
+    };
+  }),
+
+  getOnboardingStatus: managerProcedure.query(async ({ ctx }) => {
+    const { supabase, tenantId } = ctx;
+    const [staffCount, projectCount, proofReviewCount] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("role", "staff"),
+      supabase
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("proof_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+    ]);
 
     return {
-      stats: {
-        activeCount: activeRes.count ?? 0,
-        awaitingProofread: awaitingRes.count ?? 0,
-        completedThisMonth: completedRes.count ?? 0,
-      },
-      recentProjects: recentRes.data ?? [],
-      activeAssignments: assignmentsRes.data ?? [],
+      staffCount: staffCount.error ? 0 : (staffCount.count ?? 0),
+      projectCount: projectCount.error ? 0 : (projectCount.count ?? 0),
+      proofReviewCount: proofReviewCount.error ? 0 : (proofReviewCount.count ?? 0),
     };
   }),
 });

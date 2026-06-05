@@ -29,7 +29,7 @@ export function NavBar() {
             href="/register"
             className="font-inter font-bold text-sm text-slate-900 bg-[#A3E635] hover:bg-[#8fd125] transition-all duration-200 shadow-sm rounded-full px-5 py-3 h-[48px] flex items-center justify-center min-w-[120px]"
           >
-            Start Free Trial
+            Start Free Trial →
           </Link>
         </div>
 
@@ -59,7 +59,7 @@ export function NavBar() {
               onClick={() => setIsOpen(false)}
               className="block w-full font-inter font-bold text-center text-slate-900 bg-[#A3E635] hover:bg-[#8fd125] rounded-full py-3 px-4 min-h-[48px] flex items-center justify-center"
             >
-              Start Free Trial
+              Start Free Trial →
             </Link>
           </div>
         </div>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SiteVisitModal } from "./SiteVisitModal";
 import { useToast } from "@/hooks/use-toast";
@@ -18,17 +17,11 @@ interface SiteVisitsListProps {
 
 export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const { toast } = useToast();
-  const [role, setRole] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
-      const user = res.data.user;
-      setRole((user?.app_metadata?.role as string) || null);
-    });
-  }, []);
+  const { data: me } = trpc.staff.getMe.useQuery();
+  const role = me?.role || null;
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 

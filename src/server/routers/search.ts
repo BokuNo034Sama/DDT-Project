@@ -7,45 +7,53 @@ export const searchRouter = router({
   projects: protectedProcedure
     .input(
       z.object({
-        query: z.string().min(1),
+        query: z.string().default(""),
+        filterType: z
+          .enum(["ndt_code", "client_name", "address", "date", "connection"])
+          .optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
       const { supabase, tenantId } = ctx;
+      const { query, filterType, dateFrom, dateTo } = input;
 
-      // The GIN index was created on: to_tsvector('english', client_name || ' ' || address || ' ' || ndt_code)
-      // Supabase's textSearch handles this matching
-      const { data, error } = await supabase
+      let dbQuery = supabase
         .from("projects")
         .select("*")
-        .eq("tenant_id", tenantId)
-        .textSearch("client_name_address_ndt_code_search", input.query, {
-          type: "websearch", // better for human input like "K009 Lagos"
-          config: "english",
-        })
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .eq("tenant_id", tenantId);
 
-      // Note: Because we didn't create a generated column for the tsvector, textSearch might not work exactly 
-      // without specifying the exact generated column or using an RPC.
-      // If we don't have a generated column, we can fallback to basic ilike matching for now,
-      // or use Supabase's .or() syntax. Let's try basic .or() to be safe without schema changes.
+      if (filterType === "ndt_code") {
+        dbQuery = dbQuery.ilike("ndt_code", `%${query}%`);
+      } else if (filterType === "client_name") {
+        dbQuery = dbQuery.ilike("client_name", `%${query}%`);
+      } else if (filterType === "address") {
+        dbQuery = dbQuery.ilike("address", `%${query}%`);
+      } else if (filterType === "connection") {
+        dbQuery = dbQuery.ilike("connection", `%${query}%`);
+      } else if (filterType === "date") {
+        if (dateFrom && dateTo) {
+          dbQuery = dbQuery.gte("site_date", dateFrom).lte("site_date", dateTo);
+        } else if (dateFrom) {
+          dbQuery = dbQuery.eq("site_date", dateFrom);
+        } else if (dateTo) {
+          dbQuery = dbQuery.eq("site_date", dateTo);
+        }
+      } else {
+        // Default search: across ndt_code, client_name, and address
+        const formatQuery = `%${query}%`;
+        dbQuery = dbQuery.or(
+          `client_name.ilike.${formatQuery},address.ilike.${formatQuery},ndt_code.ilike.${formatQuery}`
+        );
+      }
+
+      const { data, error } = await dbQuery
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       if (error) {
-         // Fallback manual OR search if textSearch fails due to missing tsvector column
-         const fallbackQuery = `%${input.query}%`;
-         const { data: fallbackData, error: fallbackError } = await supabase
-          .from("projects")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .or(`client_name.ilike.${fallbackQuery},address.ilike.${fallbackQuery},ndt_code.ilike.${fallbackQuery}`)
-          .order("created_at", { ascending: false })
-          .limit(20);
-          
-          if (fallbackError) {
-             throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fallbackError.message });
-          }
-          return fallbackData;
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       }
 
       return data;

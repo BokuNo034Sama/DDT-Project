@@ -23,11 +23,12 @@ import {
 
 export function SettingsPage() {
   const { toast } = useToast();
-  const [role, setRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"profile" | "billing">("profile");
 
   const utils = trpc.useUtils();
   const { data: tenant, isLoading } = trpc.settings.getTenant.useQuery();
+  const { data: me } = trpc.staff.getMe.useQuery();
+  const role = me?.role || null;
 
   const [labName, setLabName] = useState("");
   const [codePrefix, setCodePrefix] = useState("");
@@ -39,14 +40,6 @@ export function SettingsPage() {
     planName: string;
     price: string;
   } | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res: Awaited<ReturnType<typeof supabase.auth.getUser>>) => {
-      const user = res.data.user;
-      setRole((user?.app_metadata?.role as string) || null);
-    });
-  }, []);
 
   useEffect(() => {
     if (tenant) {

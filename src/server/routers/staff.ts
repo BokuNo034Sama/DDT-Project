@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email/resend";
 import { InvitationEmail } from "@/lib/email/templates/invitation";
 import React from "react";
 import crypto from "crypto";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const staffRouter = router({
   // Get all staff in tenant
@@ -44,23 +45,81 @@ export const staffRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { supabase, tenantId, userId } = ctx;
 
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", input.email)
-        .eq("tenant_id", tenantId)
-        .single();
-
-      if (existingUser) {
-        throw new TRPCError({ code: "CONFLICT", message: "User already exists in this tenant" });
-      }
-
       if (!tenantId || !userId) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized context" });
       }
 
-      // Generate a secure random token
+      const adminClient = createAdminClient();
+
+      // 1. Check if email already exists in auth.users
+      const { data: { users: authUsers }, error: authError } = await adminClient.auth.admin.listUsers();
+      if (authError) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: authError.message });
+      }
+      const authUser = authUsers?.find((u) => u.email?.toLowerCase() === input.email.toLowerCase());
+
+      if (authUser) {
+        // 2 & 3. Check if they have a public user record in this tenant or another
+        const { data: existingPublicUser } = await adminClient
+          .from("users")
+          .select("*")
+          .eq("id", authUser.id)
+          .maybeSingle();
+
+        if (existingPublicUser) {
+          if (existingPublicUser.tenant_id === tenantId) {
+            // If email exists in public.users for this tenant -> show error
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "This person is already in your workspace",
+            });
+          } else {
+            // Link them by updating their tenant_id and role
+            const { error: updateError } = await adminClient
+              .from("users")
+              .update({
+                tenant_id: tenantId,
+                role: input.role,
+                joined_at: new Date().toISOString(),
+                is_active: true,
+              })
+              .eq("id", authUser.id);
+
+            if (updateError) {
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: updateError.message });
+            }
+
+            return {
+              success: true,
+              message: "User linked to your workspace.",
+            };
+          }
+        } else {
+          // Create user record in public.users and link them
+          const { error: insertError } = await adminClient
+            .from("users")
+            .insert({
+              id: authUser.id,
+              tenant_id: tenantId,
+              full_name: authUser.user_metadata?.full_name || "Invited User",
+              email: input.email,
+              role: input.role,
+              joined_at: new Date().toISOString(),
+              is_active: true,
+            });
+
+          if (insertError) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: insertError.message });
+          }
+
+          return {
+            success: true,
+            message: "User record created and linked.",
+          };
+        }
+      }
+
+      // 4. If email is new -> create invitation and send email as normal
       const token = crypto.randomUUID();
       
       // Expiration date (7 days from now)
