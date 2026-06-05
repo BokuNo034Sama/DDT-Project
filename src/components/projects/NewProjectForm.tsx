@@ -26,7 +26,7 @@ type FormDataType = z.infer<typeof formSchema>;
 export function NewProjectForm() {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { data: staffList } = trpc.staff.list.useQuery();
+  const { data: staffList } = trpc.staff.list.useQuery({ role: "staff" });
 
   const [formData, setFormData] = useState<FormDataType>({
     clientName: "",

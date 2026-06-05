@@ -35,7 +35,7 @@ export function SiteVisitModal({
   const [numberOfFloors, setNumberOfFloors] = useState<number | "">("");
 
   // Get active staff members in the tenant
-  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery();
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
 
   const utils = trpc.useUtils();
   const addVisitMutation = trpc.siteVisits.add.useMutation({

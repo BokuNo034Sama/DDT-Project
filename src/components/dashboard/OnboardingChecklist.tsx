@@ -49,7 +49,7 @@ export function OnboardingChecklist() {
   }
 
   // Paywall Logic
-  const workspaceAgeDays = 14 - (subscription?.daysLeft ?? 14);
+  const workspaceAgeDays = 14 - (subscription?.daysRemaining ?? 14);
   const isPaywallVariant =
     subscription?.status !== "active" &&
     (subscription?.status === "inactive" || workspaceAgeDays >= 12);

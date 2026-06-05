@@ -230,17 +230,25 @@ export const settingsRouter = router({
       .single();
 
     if (error || !tenant) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Tenant not found" });
+      return {
+        status: "trial",
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        daysRemaining: 14,
+      };
     }
 
     const createdTime = new Date(tenant.created_at).getTime();
     const nowTime = new Date().getTime();
     const daysElapsed = Math.floor((nowTime - createdTime) / (1000 * 60 * 60 * 24));
-    const daysLeft = Math.max(0, 14 - daysElapsed);
+    const daysRemaining = Math.max(0, 14 - daysElapsed);
+    const trialEndsAt = new Date(createdTime + 14 * 24 * 60 * 60 * 1000).toISOString();
 
     return {
       status: tenant.subscription_status || "trial",
-      daysLeft,
+      trialEndsAt,
+      currentPeriodEnd: trialEndsAt,
+      daysRemaining,
     };
   }),
 });

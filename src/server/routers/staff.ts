@@ -9,21 +9,32 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const staffRouter = router({
   // Get all staff in tenant
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const { supabase, tenantId } = ctx;
+  list: protectedProcedure
+    .input(
+      z.object({
+        role: z.enum(["lab_owner", "ops_manager", "staff"]).optional(),
+      }).optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const { supabase, tenantId } = ctx;
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("full_name");
+      let query = supabase
+        .from("users")
+        .select("*")
+        .eq("tenant_id", tenantId);
 
-    if (error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
-    }
+      if (input?.role) {
+        query = query.eq("role", input.role);
+      }
 
-    return data;
-  }),
+      const { data, error } = await query.order("full_name");
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return data;
+    }),
 
   // Get current user profile and role
   getMe: protectedProcedure.query(async ({ ctx }) => {
@@ -91,7 +102,7 @@ export const staffRouter = router({
 
             return {
               success: true,
-              message: "User linked to your workspace.",
+              message: "Staff member added to workspace",
             };
           }
         } else {
@@ -114,7 +125,7 @@ export const staffRouter = router({
 
           return {
             success: true,
-            message: "User record created and linked.",
+            message: "Staff member added to workspace",
           };
         }
       }
