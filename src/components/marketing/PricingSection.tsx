@@ -111,7 +111,7 @@ export function PricingSection() {
                 </span>
               </div>
               <p className="font-inter font-medium text-[14px] text-[#A3E635] mt-3">
-                Start with 14 days free
+                Billed monthly. Cancel anytime.
               </p>
             </div>
 
@@ -141,7 +141,7 @@ export function PricingSection() {
                 href="/register"
                 className="flex items-center justify-center w-full h-[52px] bg-[#A3E635] hover:bg-[#8fd125] text-[#0f172a] rounded-full font-inter font-semibold text-[16px] transition-colors duration-200"
               >
-                Start Free Trial →
+                Get Premium →
               </Link>
               <p className="font-inter font-normal text-[13px] text-[rgba(255,255,255,0.4)] text-center mt-3">
                 No credit card required · Cancel anytime
