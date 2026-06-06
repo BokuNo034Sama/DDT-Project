@@ -42,12 +42,11 @@ function LoginContent() {
     <div className="flex min-h-screen bg-white">
       {/* Left Panel - Hero */}
       <div className="hidden lg:flex w-1/2 bg-[#3B82F6] flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#3B82F6]/20 to-[#1d4ed8]/40 z-10" />
         <Image
           src="/images/hero_visual.png"
           alt="DDT Structure Hero"
           fill
-          className="object-cover opacity-80 mix-blend-overlay"
+          className="object-cover opacity-80"
           priority
         />
         

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Syne, DM_Sans, JetBrains_Mono, Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -31,15 +31,21 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["500"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#3B82F6",
+};
+
 export const metadata: Metadata = {
   title: "DDT Structure",
-  description: "Non-destructive testing project management and report pipeline for NDT laboratories.",
+  description: "Engineering confidence. Report clarity.",
   manifest: "/manifest.json",
-  themeColor: "#3B82F6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "DDT Structure",
+  },
+  icons: {
+    icon: "/favicon.ico",
   },
 };
 
