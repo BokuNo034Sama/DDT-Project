@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { StaffDashboard } from "@/components/staff/StaffDashboard";
 import { ManagerDashboard } from "@/components/dashboard/ManagerDashboard";
@@ -47,6 +48,10 @@ export default function DashboardPage() {
         <LoadingSkeleton type="table" />
       </div>
     );
+  }
+
+  if (profile.role === "super_admin") {
+    redirect("/admin");
   }
 
   if (profile.role === "staff") {
