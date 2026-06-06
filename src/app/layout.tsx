@@ -38,6 +38,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "DDT Structure",
   description: "Engineering confidence. Report clarity.",
+  metadataBase: new URL("https://ddt-structure.com"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -46,6 +47,28 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.ico",
+  },
+  openGraph: {
+    title: "DDT Structure",
+    description: "Engineering confidence. Report clarity.",
+    url: "https://ddt-structure.com",
+    siteName: "DDT Structure",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DDT Structure - Laboratory Operations Platform",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DDT Structure",
+    description: "Engineering confidence. Report clarity.",
+    images: ["/og-image.png"],
   },
 };
 
