@@ -131,10 +131,10 @@ export function ProofReviewModal({
       <DialogContent className="bg-ddt-surface border border-ddt-border text-ddt-text max-w-md w-[95%] sm:w-full rounded-xl">
         <DialogHeader className="text-left">
           <DialogTitle className="font-syne text-lg font-bold text-ddt-accent uppercase tracking-wide">
-            Submit Proofread Outcome
+            Finalize Proofread Review
           </DialogTitle>
           <DialogDescription className="text-ddt-muted text-xs">
-            Review the drafted report. Passing it uploads the report as final. Failing it logs a fault and returns the project to WIP.
+            Review the compiled draft to finalize this stage. Approving the report locks it as customer-ready, while requesting revisions routes it back to the active workflow state (WIP).
           </DialogDescription>
         </DialogHeader>
 
@@ -153,7 +153,7 @@ export function ProofReviewModal({
               <div className={`p-2 rounded-full ${result === "pass" ? "bg-emerald-500 text-black font-bold" : "bg-secondary text-ddt-muted"}`}>
                 <Check className="w-5 h-5" />
               </div>
-              <span className="font-bold text-sm tracking-wide uppercase font-syne">Pass Report</span>
+              <span className="font-bold text-sm tracking-wide uppercase font-syne">Approve Report</span>
             </button>
 
             <button
@@ -168,7 +168,7 @@ export function ProofReviewModal({
               <div className={`p-2 rounded-full ${result === "fail" ? "bg-red-500 text-black font-bold" : "bg-secondary text-ddt-muted"}`}>
                 <X className="w-5 h-5" />
               </div>
-              <span className="font-bold text-sm tracking-wide uppercase font-syne">Fail / Revise</span>
+              <span className="font-bold text-sm tracking-wide uppercase font-syne">Request Revisions</span>
             </button>
           </div>
 
@@ -176,9 +176,9 @@ export function ProofReviewModal({
           <div className="bg-ddt-input border border-ddt-border rounded-xl p-4 space-y-4">
             <div>
               <Label className="text-ddt-accent font-syne font-bold flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4" /> V3 AI Proofreader
+                <Sparkles className="w-4 h-4" /> AI Compliance Engine
               </Label>
-              <p className="text-xs text-ddt-muted mb-3">Upload the drafted .docx report to automatically check it against LSMTL Guidelines.</p>
+              <p className="text-xs text-ddt-muted mb-3">Scan your drafted document against active LSMTL regulatory frameworks to capture technical discrepancies instantly.</p>
               
               <div className="flex items-center gap-3">
                 <Label htmlFor="report-upload" className="cursor-pointer flex-1 flex items-center justify-center gap-2 border border-dashed border-ddt-border hover:border-ddt-accent hover:bg-ddt-accent/5 p-3 rounded-md transition-colors">
@@ -255,7 +255,7 @@ export function ProofReviewModal({
                   <span>Submitting...</span>
                 </span>
               ) : (
-                <span>Submit Outcome</span>
+                <span>Confirm Review</span>
               )}
             </Button>
           </DialogFooter>
