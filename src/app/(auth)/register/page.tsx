@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 
 function RegisterContent() {
   const router = useRouter();
@@ -17,8 +17,38 @@ function RegisterContent() {
   const [labName, setLabName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return { score: 0, label: "", color: "text-[#e5e7eb]", barColor: "bg-[#e5e7eb]" };
+    const len = pwd.length;
+    if (len < 6) {
+      return { score: 1, label: "Weak", color: "text-red-500", barColor: "bg-red-500" };
+    }
+    if (len >= 6 && len <= 7) {
+      return { score: 2, label: "Fair", color: "text-amber-500", barColor: "bg-amber-500" };
+    }
+    
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasDigit = /[0-9]/.test(pwd);
+    const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+    
+    if (len >= 8 && hasUpper && hasLower && hasDigit && hasSymbol) {
+      return { score: 4, label: "Strong", color: "text-[#A3E635]", barColor: "bg-[#A3E635]" };
+    }
+
+    const criteriaCount = [hasUpper, hasLower, hasDigit, hasSymbol].filter(Boolean).length;
+    if (len >= 8 && criteriaCount >= 2) {
+      return { score: 3, label: "Good", color: "text-sky-400", barColor: "bg-sky-400" };
+    }
+
+    return { score: 2, label: "Fair", color: "text-amber-500", barColor: "bg-amber-500" };
+  };
+
+  const { score: strengthScore, label: strengthLabel, color: strengthColor, barColor: strengthBarColor } = getPasswordStrength(password);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,16 +161,48 @@ function RegisterContent() {
                 <Label htmlFor="password" className="text-[#1A1917] font-medium">
                   Password
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Min 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px]"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min 8 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className="h-[44px] bg-white border-[#D1D5DB] rounded-[12px] text-[#1A1917] placeholder:text-[#9CA3AF] focus:border-[#3B82F6] focus:ring-4 focus:ring-[#3B82F6]/10 transition-all font-sans text-[14px] pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {/* Password Strength Indicator */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4].map((index) => (
+                      <div
+                        key={index}
+                        className={`h-[4px] rounded-full flex-1 transition-colors duration-200 ${
+                          index <= strengthScore ? strengthBarColor : "bg-[#e5e7eb]"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {strengthLabel && (
+                    <p className={`text-[11px] font-sans font-semibold uppercase tracking-wider transition-colors duration-200 ${strengthColor}`}>
+                      {strengthLabel}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
