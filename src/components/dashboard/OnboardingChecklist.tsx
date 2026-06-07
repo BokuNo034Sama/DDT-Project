@@ -21,7 +21,14 @@ export function OnboardingChecklist() {
   const [isExporting, setIsExporting] = useState(false);
 
   // tRPC state checks
-  const { data: statusData, isLoading: loadingStatus } = trpc.projects.getOnboardingStatus.useQuery();
+  const { data: statusData, isLoading: loadingStatus } = trpc.projects.getOnboardingStatus.useQuery(
+    undefined,
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000,
+    }
+  );
   const { data: subscription, isLoading: loadingSub } = trpc.settings.getSubscription.useQuery();
 
   const now = new Date();

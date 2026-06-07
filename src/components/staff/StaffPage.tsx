@@ -26,6 +26,7 @@ export default function StaffPage() {
     onSuccess: () => {
       toast({ title: "User deactivated" });
       utils.staff.list.invalidate();
+      utils.projects.getOnboardingStatus.invalidate();
     },
     onError: (err) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -36,6 +37,7 @@ export default function StaffPage() {
     onSuccess: () => {
       toast({ title: "Role updated successfully" });
       utils.staff.list.invalidate();
+      utils.projects.getOnboardingStatus.invalidate();
     },
     onError: (err) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });

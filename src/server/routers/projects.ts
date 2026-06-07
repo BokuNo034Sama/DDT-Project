@@ -355,7 +355,8 @@ export const projectsRouter = router({
         .from("users")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .eq("role", "staff"),
+        .eq("role", "staff")
+        .eq("is_active", true),
       supabase
         .from("projects")
         .select("id", { count: "exact", head: true })

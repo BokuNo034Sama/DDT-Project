@@ -21,7 +21,8 @@ export const staffRouter = router({
       let query = supabase
         .from("users")
         .select("*")
-        .eq("tenant_id", tenantId);
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true);
 
       if (input?.role) {
         query = query.eq("role", input.role);

@@ -65,6 +65,7 @@ export async function acceptInvite(formData: FormData) {
     full_name: fullName,
     email: invite.email,
     role: invite.role,
+    is_active: true,
     joined_at: new Date().toISOString(),
   });
 
