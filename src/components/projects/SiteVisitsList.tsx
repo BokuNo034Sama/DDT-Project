@@ -7,7 +7,6 @@ import { SiteVisitModal } from "./SiteVisitModal";
 import { useToast } from "@/hooks/use-toast";
 import { UserPill } from "@/components/ui/UserPill";
 import { CalendarDays, Layers, Plus, Trash2, Loader2, Landmark } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -26,6 +25,11 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 
   const utils = trpc.useUtils();
+  
+  const { data: visitsList, isLoading: loadingVisits } = trpc.siteVisits.listByProject.useQuery({
+    projectId: project.id,
+  });
+
   const deleteMutation = trpc.siteVisits.remove.useMutation({
     onSuccess: () => {
       toast({
@@ -33,6 +37,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
         description: "The site visit record has been removed.",
       });
       utils.projects.getById.invalidate({ id: project.id });
+      utils.siteVisits.listByProject.invalidate({ projectId: project.id });
       setDeletingId(null);
     },
     onError: (error) => {
@@ -50,7 +55,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
     deleteMutation.mutate({ siteVisitId: id });
   };
 
-  const visits = project.site_visits || [];
+  const visits = visitsList || [];
 
   return (
     <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 flex flex-col h-full justify-between">
@@ -73,7 +78,11 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
         </div>
 
         {/* List of Visits */}
-        {visits.length === 0 ? (
+        {loadingVisits ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-ddt-accent" />
+          </div>
+        ) : visits.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center bg-ddt-input/20 border border-dashed border-ddt-border rounded-lg p-6">
             <CalendarDays className="w-8 h-8 text-ddt-faint mb-2" />
             <p className="text-xs text-ddt-muted font-medium">No site visits recorded yet</p>
@@ -143,7 +152,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
       <SiteVisitModal
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
-        projectId={project.id}
+        project={project}
       />
     </div>
   );

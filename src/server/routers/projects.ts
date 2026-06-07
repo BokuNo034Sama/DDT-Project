@@ -289,7 +289,16 @@ export const projectsRouter = router({
 
   // Dashboard summary data
   getDashboardData: managerProcedure.query(async ({ ctx }) => {
-    const { supabase } = ctx;
+    const adminClient = createAdminClient();
+
+    // Resolve the database-level tenant configuration directly to bypass session/JWT sync constraints
+    const profile = await adminClient
+      .from("users")
+      .select("tenant_id")
+      .eq("id", ctx.userId)
+      .single();
+
+    const activeTenantId = profile.data?.tenant_id || ctx.tenantId;
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -302,38 +311,38 @@ export const projectsRouter = router({
       recentRes,
       assignmentsRes,
     ] = await Promise.all([
-      supabase
+      adminClient
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", ctx.tenantId)
+        .eq("tenant_id", activeTenantId)
         .not("status", "in", '("report_delivered","report_verified")'),
-      supabase
+      adminClient
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", ctx.tenantId)
+        .eq("tenant_id", activeTenantId)
         .eq("status", "report_done"),
-      supabase
+      adminClient
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("tenant_id", ctx.tenantId)
+        .eq("tenant_id", activeTenantId)
         .eq("status", "report_delivered")
         .gte("updated_at", startOfMonth)
         .lte("updated_at", endOfMonth),
-      supabase
+      adminClient
         .from("projects")
         .select("id, ndt_code, client_name, address, status, site_date, created_at")
-        .eq("tenant_id", ctx.tenantId)
+        .eq("tenant_id", activeTenantId)
         .not("status", "in", '("report_delivered","report_verified")')
         .order("created_at", { ascending: false })
         .limit(20),
-      supabase
+      adminClient
         .from("project_stage_assignments")
         .select(`
           *,
           project:projects(id, ndt_code, client_name, status),
           assigned_user:users!project_stage_assignments_assigned_to_fkey(id, full_name, role)
         `, { count: "exact" })
-        .eq("tenant_id", ctx.tenantId)
+        .eq("tenant_id", activeTenantId)
         .eq("status", "in_progress")
         .order("started_at", { ascending: false })
         .limit(10),

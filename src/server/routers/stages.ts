@@ -6,9 +6,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const stagesRouter = router({
   // Get active stage assignments for current user
   getMyStages: protectedProcedure.query(async ({ ctx }) => {
-    const { supabase, tenantId, userId } = ctx;
+    const adminClient = createAdminClient();
 
-    const { data, error } = await supabase
+    // Resolve the true active tenant directly from database profile
+    const profile = await adminClient
+      .from("users")
+      .select("tenant_id")
+      .eq("id", ctx.userId)
+      .single();
+
+    const activeTenantId = profile.data?.tenant_id || ctx.tenantId;
+
+    const { data, error } = await adminClient
       .from("project_stage_assignments")
       .select(`
         *,
@@ -26,8 +35,8 @@ export const stagesRouter = router({
           role
         )
       `)
-      .eq("assigned_to", userId)
-      .eq("tenant_id", tenantId)
+      .eq("assigned_to", ctx.userId)
+      .eq("tenant_id", activeTenantId)
       .in("status", ["pending", "in_progress"])
       .order("assigned_at", { ascending: false });
 
@@ -63,41 +72,52 @@ export const stagesRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
       }
 
-      // Upsert the assignment (using the unique constraint on project_id + stage)
-      const { data, error } = await adminClient
-        .from("project_stage_assignments")
-        .upsert(
-          {
-            project_id: input.projectId,
-            tenant_id: activeTenantId,
-            stage: input.stage,
-            assigned_to: input.assignedTo,
-            assigned_by: ctx.userId,
-            assigned_at: new Date().toISOString(),
-            status: "pending",
-          },
-          { onConflict: "project_id, stage" }
-        )
-        .select()
-        .single();
+      // Upsert the assignment (using the unique constraint on project_id + stage) and retrieve project details concurrently
+      const [assignmentRes, projectRes] = await Promise.all([
+        adminClient
+          .from("project_stage_assignments")
+          .upsert(
+            {
+              project_id: input.projectId,
+              tenant_id: activeTenantId,
+              stage: input.stage,
+              assigned_to: input.assignedTo,
+              assigned_by: ctx.userId,
+              assigned_at: new Date().toISOString(),
+              status: "pending",
+            },
+            { onConflict: "project_id, stage" }
+          )
+          .select()
+          .single(),
+        adminClient
+          .from("projects")
+          .select("ndt_code")
+          .eq("id", input.projectId)
+          .single()
+      ]);
 
-      if (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      if (assignmentRes.error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: assignmentRes.error.message });
       }
 
       // If assigned to a user, create a notification
       if (input.assignedTo) {
+        const projectCode = projectRes.data?.ndt_code || "Unknown";
+        const stageLabel = input.stage.split("_").map((w, idx) => idx === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
+
         await adminClient.from("notifications").insert({
           tenant_id: activeTenantId,
           user_id: input.assignedTo,
           type: "task_assigned",
-          title: `New Task: ${input.stage}`,
-          body: `You have been assigned to the ${input.stage} stage.`,
+          title: "New Task Assigned",
+          body: `You have been assigned to the ${stageLabel} stage for project ${projectCode}`,
           related_project_id: input.projectId,
+          is_read: false,
         });
       }
 
-      return data;
+      return assignmentRes.data;
     }),
 
   // Record start time for a stage

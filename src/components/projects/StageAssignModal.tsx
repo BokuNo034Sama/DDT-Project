@@ -50,6 +50,7 @@ export function StageAssignModal({
       });
 
       utils.projects.getById.invalidate({ id: projectId });
+      utils.projects.getOnboardingStatus.invalidate();
       onOpenChange(false);
       if (onSuccess) onSuccess();
     },

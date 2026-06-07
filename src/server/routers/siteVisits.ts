@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, managerProcedure } from "../trpc";
+import { router, managerProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -102,5 +102,29 @@ export const siteVisitsRouter = router({
       }
 
       return { success: true };
+    }),
+
+  // List site visits by project ID
+  listByProject: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+
+      const { data, error } = await adminClient
+        .from("site_visits")
+        .select(`
+          *,
+          staff_user:users!site_visits_staff_id_fkey (
+            full_name
+          )
+        `)
+        .eq("project_id", input.projectId)
+        .order("visit_date", { ascending: false });
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return data;
     }),
 });

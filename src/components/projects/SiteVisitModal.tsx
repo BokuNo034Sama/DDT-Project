@@ -16,23 +16,34 @@ import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc/client";
 import { Loader2, CalendarRange, CheckSquare, Square } from "lucide-react";
 
+import { ProjectWithRelations } from "@/types";
+
 interface SiteVisitModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: string;
+  project: ProjectWithRelations;
   onSuccess?: () => void;
 }
 
 export function SiteVisitModal({
   isOpen,
   onOpenChange,
-  projectId,
+  project,
   onSuccess,
 }: SiteVisitModalProps) {
   const { toast } = useToast();
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split("T")[0]);
-  const [numberOfFloors, setNumberOfFloors] = useState<number | "">("");
+  const [numberOfFloors, setNumberOfFloors] = useState<number | "">(
+    project.number_of_floors ?? ""
+  );
+
+  // Sync state whenever the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setNumberOfFloors(project.number_of_floors ?? "");
+    }
+  }, [isOpen, project.number_of_floors]);
 
   // Get active staff members in the tenant
   const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
@@ -45,12 +56,13 @@ export function SiteVisitModal({
         description: "Site attendance has been recorded successfully.",
       });
 
-      utils.projects.getById.invalidate({ id: projectId });
+      utils.projects.getById.invalidate({ id: project.id });
+      utils.siteVisits.listByProject.invalidate({ projectId: project.id });
       onOpenChange(false);
       // Reset form states
       setSelectedStaffIds([]);
       setVisitDate(new Date().toISOString().split("T")[0]);
-      setNumberOfFloors("");
+      setNumberOfFloors(project.number_of_floors ?? "");
       if (onSuccess) onSuccess();
     },
     onError: (error) => {
@@ -99,7 +111,7 @@ export function SiteVisitModal({
     }
 
     addVisitMutation.mutate({
-      projectId,
+      projectId: project.id,
       staffIds: selectedStaffIds,
       visitDate,
       numberOfFloors: numberOfFloors === "" ? undefined : Number(numberOfFloors),
