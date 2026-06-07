@@ -27,6 +27,7 @@ export function InviteModal({ children }: { children: React.ReactNode }) {
       setEmail("");
       utils.staff.getPendingInvitations.invalidate();
       utils.projects.getOnboardingStatus.invalidate();
+      utils.staff.list.invalidate();
     },
     onError: (error) => {
       toast({

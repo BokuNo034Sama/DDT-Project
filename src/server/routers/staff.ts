@@ -16,12 +16,20 @@ export const staffRouter = router({
       }).optional()
     )
     .query(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const { supabase } = ctx;
+
+      const profile = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const activeTenantId = profile.data?.tenant_id;
 
       let query = supabase
         .from("users")
         .select("*")
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", activeTenantId)
         .eq("is_active", true);
 
       if (input?.role) {

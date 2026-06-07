@@ -349,22 +349,31 @@ export const projectsRouter = router({
   }),
 
   getOnboardingStatus: managerProcedure.query(async ({ ctx }) => {
-    const { supabase, tenantId } = ctx;
+    const { supabase } = ctx;
+
+    const profile = await supabase
+      .from("users")
+      .select("tenant_id")
+      .eq("id", ctx.userId)
+      .single();
+
+    const activeTenantId = profile.data?.tenant_id;
+
     const [staffCount, projectCount, proofReviewCount] = await Promise.all([
       supabase
         .from("users")
         .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", activeTenantId)
         .eq("role", "staff")
         .eq("is_active", true),
       supabase
         .from("projects")
         .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId),
+        .eq("tenant_id", activeTenantId),
       supabase
         .from("proof_reviews")
         .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId),
+        .eq("tenant_id", activeTenantId),
     ]);
 
     return {
