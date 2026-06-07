@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const siteVisitsRouter = router({
   // Log staff site attendance
@@ -14,14 +15,27 @@ export const siteVisitsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId, userId } = ctx;
+      const adminClient = createAdminClient();
+
+      // Resolve the True Tenant Context
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const activeTenantId = profile.data?.tenant_id;
+
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
 
       // Verify project exists in this tenant
-      const { data: project, error: projectError } = await supabase
+      const { data: project, error: projectError } = await adminClient
         .from("projects")
         .select("id")
         .eq("id", input.projectId)
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", activeTenantId)
         .single();
 
       if (projectError || !project) {
@@ -30,14 +44,14 @@ export const siteVisitsRouter = router({
 
       const visitsToInsert = input.staffIds.map((staffId) => ({
         project_id: input.projectId,
-        tenant_id: tenantId,
+        tenant_id: activeTenantId,
         staff_id: staffId,
         visit_date: input.visitDate,
         number_of_floors: input.numberOfFloors ?? null,
-        created_by: userId,
+        created_by: ctx.userId,
       }));
 
-      const { data, error } = await supabase
+      const { data, error } = await adminClient
         .from("site_visits")
         .insert(visitsToInsert)
         .select();
