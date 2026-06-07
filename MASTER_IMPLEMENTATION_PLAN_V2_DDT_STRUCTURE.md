@@ -3,7 +3,7 @@
 **Status:** Conflict-Free — Ready for Antigravity
 **Current Build Position:** Step 23 complete
 **Remaining Steps:** 24–40 + 4 Blueprint UX additions (Steps 33A–33D)
-**Live URL:** https://ddt-project.vercel.app
+**Live URL:** https://ddtstructure.com
 **Project Directory:** `C:\Users\provident\Documents\034 Products\ddt-structure`
 
 ---
@@ -19,7 +19,7 @@ TECH STACK: Next.js 14 App Router, TypeScript strict, tRPC, Supabase
 (Postgres + Auth + Realtime + Storage), Tailwind CSS, shadcn/ui,
 Dexie.js (offline), next-pwa, @react-pdf/renderer, Resend, Anthropic SDK.
 
-LIVE URL:             https://ddt-project.vercel.app
+LIVE URL:             https://ddtstructure.com
 SUPABASE PROJECT REF: sypsrkgolllnfhzmqhmk
 TENANT UUID:          78cd5117-3d79-4507-b286-d087e2dfa426
 

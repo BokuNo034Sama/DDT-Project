@@ -19,7 +19,7 @@ export async function sendEmail({
 
   try {
     const data = await resend.emails.send({
-      from: "DDT Structure <noreply@ddtstructure.com>", // Configure your verified domain here
+      from: "DDT Structure <no-reply@ddtstructure.com>", // Configure your verified domain here
       to,
       subject,
       react,
