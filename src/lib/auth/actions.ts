@@ -15,6 +15,7 @@ export async function signOut() {
 
 export async function acceptInvite(formData: FormData) {
   const supabase = createClient();
+  const adminClient = createAdminClient();
 
   const token = formData.get("token") as string;
   const password = formData.get("password") as string;
@@ -25,18 +26,19 @@ export async function acceptInvite(formData: FormData) {
   }
 
   // 1. Validate token
-  const { data: invite, error: inviteError } = await supabase
+  console.log("Looking up token:", token);
+  const { data: invite, error: inviteError } = await adminClient
     .from("invitations")
     .select("*")
     .eq("token", token)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
     .single();
+
+  console.log("Query result:", invite, inviteError);
 
   if (inviteError || !invite) {
     return { error: "Invalid or expired invitation token." };
-  }
-
-  if (new Date(invite.expires_at) < new Date()) {
-    return { error: "Invitation has expired. Please contact your manager." };
   }
 
   // 2. Create Supabase Auth user
@@ -57,12 +59,7 @@ export async function acceptInvite(formData: FormData) {
   }
 
   // 3. Create public users record
-  // RLS will allow this if configured, or we'd need service role.
-  // For this step, we'll assume the migration allows the user to insert their own record or it's handled via trigger.
-  // Actually, the user is authenticated now, but RLS might block if they don't have tenant_id in JWT yet.
-  // This is a common hurdle. A DB trigger on auth.users is the best practice.
-  
-  const { error: userError } = await supabase.from("users").insert({
+  const { error: userError } = await adminClient.from("users").insert({
     id: authUser.user.id,
     tenant_id: invite.tenant_id,
     full_name: fullName,

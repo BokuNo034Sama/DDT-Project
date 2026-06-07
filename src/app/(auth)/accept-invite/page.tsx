@@ -14,6 +14,8 @@ function AcceptInviteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
+  console.log("Extracted token from searchParams:", token);
+
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
