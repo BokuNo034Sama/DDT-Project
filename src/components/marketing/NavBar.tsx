@@ -45,12 +45,14 @@ export function NavBar() {
 
         {/* Right: Actions (Desktop) */}
         <div className="hidden md:flex items-center gap-6">
-          <Link
-            href={isAuthenticated ? "/dashboard" : "/login"}
-            className="font-inter font-semibold text-sm text-white bg-transparent border border-white/40 hover:border-white hover:bg-white/10 transition-all duration-200 rounded-full px-5 py-2.5 h-[48px] flex items-center justify-center"
-          >
-            {isAuthenticated ? "Go to Dashboard →" : "Sign In"}
-          </Link>
+          {!isAuthenticated && (
+            <Link
+              href="/login"
+              className="font-inter font-semibold text-sm text-white bg-transparent border border-white/40 hover:border-white hover:bg-white/10 transition-all duration-200 rounded-full px-5 py-2.5 h-[48px] flex items-center justify-center"
+            >
+              Sign In
+            </Link>
+          )}
           <Link
             href={isAuthenticated ? "/dashboard" : "/register"}
             className="font-inter font-bold text-sm text-[#1a1a1a] bg-[#A3E635] hover:bg-[#8fd125] transition-all duration-200 rounded-full px-5 py-3 h-[48px] flex items-center justify-center min-w-[120px]"
@@ -73,13 +75,15 @@ export function NavBar() {
       {isOpen && (
         <div className="md:hidden border-t border-white/10 bg-[#0C1220]/95 backdrop-blur-md animate-in slide-in-from-top duration-200">
           <div className="px-4 pt-3 pb-6 space-y-4">
-            <Link
-              href={isAuthenticated ? "/dashboard" : "/login"}
-              onClick={() => setIsOpen(false)}
-              className="block w-full font-inter font-semibold text-center text-white bg-transparent border border-white/40 hover:bg-white/10 rounded-full py-3 px-4 min-h-[48px] flex items-center justify-center"
-            >
-              {isAuthenticated ? "Go to Dashboard →" : "Sign In"}
-            </Link>
+            {!isAuthenticated && (
+              <Link
+                href="/login"
+                onClick={() => setIsOpen(false)}
+                className="block w-full font-inter font-semibold text-center text-white bg-transparent border border-white/40 hover:bg-white/10 rounded-full py-3 px-4 min-h-[48px] flex items-center justify-center"
+              >
+                Sign In
+              </Link>
+            )}
             <Link
               href={isAuthenticated ? "/dashboard" : "/register"}
               onClick={() => setIsOpen(false)}
