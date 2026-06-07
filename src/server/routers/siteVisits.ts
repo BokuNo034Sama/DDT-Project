@@ -60,6 +60,29 @@ export const siteVisitsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       }
 
+      // Automate Project Status Promotion on Site Visit
+      const { data: projectRecord } = await adminClient
+        .from("projects")
+        .select("status")
+        .eq("id", input.projectId)
+        .single();
+
+      if (projectRecord?.status === "not_started") {
+        await adminClient
+          .from("projects")
+          .update({ status: "wip", updated_at: new Date().toISOString() })
+          .eq("id", input.projectId);
+
+        await adminClient.from("status_history").insert({
+          project_id: input.projectId,
+          tenant_id: activeTenantId,
+          from_status: "not_started",
+          to_status: "wip",
+          changed_by: ctx.userId,
+          notes: "Auto-advanced because a site visit was logged",
+        });
+      }
+
       return data;
     }),
 

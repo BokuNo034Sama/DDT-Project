@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const stagesRouter = router({
   // Get active stage assignments for current user
@@ -47,18 +48,31 @@ export const stagesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId, userId } = ctx;
+      const adminClient = createAdminClient();
+
+      // Resolve the True Tenant Context
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const activeTenantId = profile.data?.tenant_id;
+
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
 
       // Upsert the assignment (using the unique constraint on project_id + stage)
-      const { data, error } = await supabase
+      const { data, error } = await adminClient
         .from("project_stage_assignments")
         .upsert(
           {
             project_id: input.projectId,
-            tenant_id: tenantId,
+            tenant_id: activeTenantId,
             stage: input.stage,
             assigned_to: input.assignedTo,
-            assigned_by: userId,
+            assigned_by: ctx.userId,
             assigned_at: new Date().toISOString(),
             status: "pending",
           },
@@ -73,8 +87,8 @@ export const stagesRouter = router({
 
       // If assigned to a user, create a notification
       if (input.assignedTo) {
-        await supabase.from("notifications").insert({
-          tenant_id: tenantId,
+        await adminClient.from("notifications").insert({
+          tenant_id: activeTenantId,
           user_id: input.assignedTo,
           type: "task_assigned",
           title: `New Task: ${input.stage}`,
