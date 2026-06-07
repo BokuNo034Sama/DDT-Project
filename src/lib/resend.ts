@@ -21,7 +21,7 @@ export async function sendWorkspaceEmail({
 
   try {
     const data = await resend.emails.send({
-      from: "DDT Structure <system@send.ddtstructure.com>",
+      from: "DDT Structure <no-reply@ddtstructure.com>",
       to,
       subject,
       react,
