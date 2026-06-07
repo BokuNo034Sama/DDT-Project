@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc";
+import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 export const searchRouter = router({
   // Full-text search across projects
-  projects: protectedProcedure
+  projects: managerProcedure
     .input(
       z.object({
         query: z.string().default(""),

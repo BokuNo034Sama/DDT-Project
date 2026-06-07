@@ -2,16 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { response, user } = await updateSession(request);
+  const { response, user, role } = await updateSession(request);
+
+  const pathname = request.nextUrl.pathname;
 
   const isAuthPage =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register") ||
-    request.nextUrl.pathname.startsWith("/accept-invite");
-  const isApiRoute = request.nextUrl.pathname.startsWith("/api");
-  const isLandingPage = request.nextUrl.pathname === "/";
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/accept-invite");
+  const isApiRoute = pathname.startsWith("/api");
+  const isLandingPage = pathname === "/";
   const isPublicRoute = isAuthPage || isApiRoute || isLandingPage;
-
 
   // If user is not logged in and trying to access a protected route
   if (!user && !isPublicRoute) {
@@ -22,9 +23,26 @@ export async function middleware(request: NextRequest) {
   if (
     user &&
     isAuthPage &&
-    !request.nextUrl.pathname.startsWith("/accept-invite")
+    !pathname.startsWith("/accept-invite")
   ) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // If user is logged in and has the staff role, block manager-only routes
+  if (user && role === "staff") {
+    const isManagerOnly =
+      pathname === "/projects" ||
+      pathname === "/projects/new" ||
+      (pathname.startsWith("/projects/") && pathname.endsWith("/edit")) ||
+      pathname.startsWith("/staff") ||
+      pathname.startsWith("/search") ||
+      pathname.startsWith("/performance") ||
+      pathname.startsWith("/admin") ||
+      (pathname.startsWith("/settings") && pathname !== "/settings/profile");
+
+    if (isManagerOnly) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return response;

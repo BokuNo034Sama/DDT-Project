@@ -216,7 +216,7 @@ export const projectsRouter = router({
     }),
 
   // Edit existing project details
-  update: protectedProcedure
+  update: managerProcedure
     .input(
       z.object({
         id: z.string().uuid(),

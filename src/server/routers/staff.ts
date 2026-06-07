@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const staffRouter = router({
   // Get all staff in tenant
-  list: protectedProcedure
+  list: managerProcedure
     .input(
       z.object({
         role: z.enum(["lab_owner", "ops_manager", "staff"]).optional(),
@@ -38,11 +38,29 @@ export const staffRouter = router({
 
   // Get current user profile and role
   getMe: protectedProcedure.query(async ({ ctx }) => {
-    return {
-      userId: ctx.userId,
-      tenantId: ctx.tenantId,
-      role: ctx.role,
-    };
+    const { supabase, userId } = ctx;
+    
+    if (!userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+    }
+
+    const { data: profile, error } = await supabase
+      .from("users")
+      .select("id, full_name, email, role, tenant_id")
+      .eq("id", userId)
+      .single();
+
+    if (error || !profile) {
+      return {
+        id: userId,
+        tenant_id: ctx.tenantId,
+        role: ctx.role || "staff",
+        full_name: "User",
+        email: "",
+      };
+    }
+
+    return profile;
   }),
 
   // Invite a new staff member

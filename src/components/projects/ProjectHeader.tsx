@@ -129,13 +129,15 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
               {project.client_name}
             </h1>
           </div>
-          <Button
-            onClick={handleOpen}
-            className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
-          >
-            <Edit2 className="w-4 h-4" />
-            <span>Edit Details</span>
-          </Button>
+          {isManager && (
+            <Button
+              onClick={handleOpen}
+              className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
+            >
+              <Edit2 className="w-4 h-4" />
+              <span>Edit Details</span>
+            </Button>
+          )}
         </div>
 
         {/* Info Grid */}

@@ -35,6 +35,22 @@ const navItems = [
 export function Sidebar({ user, profile }: SidebarProps) {
   const pathname = usePathname();
 
+  const isManager = ["ops_manager", "lab_owner", "super_admin"].includes(profile?.role || "");
+
+  const visibleNavItems = navItems
+    .map((item) => {
+      if (item.name === "Settings" && !isManager) {
+        return { ...item, href: "/settings/profile" };
+      }
+      return item;
+    })
+    .filter((item) => {
+      if (item.href === "/dashboard" || item.href === "/settings/profile") {
+        return true;
+      }
+      return isManager;
+    });
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -51,7 +67,7 @@ export function Sidebar({ user, profile }: SidebarProps) {
         </div>
 
         <nav className="flex-1 px-3 space-y-1 mt-4">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
               <Link
@@ -108,7 +124,7 @@ export function Sidebar({ user, profile }: SidebarProps) {
 
       {/* Mobile Bottom Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-ddt-surface border-t border-ddt-border flex justify-around items-center h-16 px-2 z-50">
-        {navItems.slice(0, 5).map((item) => {
+        {(isManager ? visibleNavItems.slice(0, 5) : visibleNavItems).map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
