@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { sendEmail } from "@/lib/email/resend";
+import { sendWorkspaceEmail } from "@/lib/resend";
 import { InvitationEmail } from "@/lib/email/templates/invitation";
 import React from "react";
 import crypto from "crypto";
@@ -165,7 +165,7 @@ export const staffRouter = router({
 
       // Send the email (wrapped in try/catch so failures don't crash invitation flow)
       try {
-        await sendEmail({
+        await sendWorkspaceEmail({
           to: input.email,
           subject: `You've been invited to join ${labName} on DDT Structure`,
           react: React.createElement(InvitationEmail, {

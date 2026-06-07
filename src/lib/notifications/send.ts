@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Database } from "@/types/database";
-import { sendEmail } from "../email/resend";
+import { sendWorkspaceEmail } from "@/lib/resend";
 import { NotificationEmail } from "../email/templates/notification";
 import React from "react";
 
@@ -48,9 +48,8 @@ export async function sendNotification({
     // Get user email
     const { data: user } = (await supabase.from("users").select("email").eq("id", userId).single()) as any;
     const { data: tenant } = (await supabase.from("tenants").select("name").eq("id", tenantId).single()) as any;
-    
     if (user?.email && tenant?.name) {
-      await sendEmail({
+      await sendWorkspaceEmail({
         to: user.email,
         subject: `${title} - DDT Structure`,
         react: React.createElement(NotificationEmail, {
