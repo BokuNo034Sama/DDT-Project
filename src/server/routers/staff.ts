@@ -173,6 +173,7 @@ export const staffRouter = router({
             inviterName,
             role: input.role,
             token,
+            appUrl: process.env.NEXT_PUBLIC_APP_URL,
           }),
         });
       } catch (emailError) {
