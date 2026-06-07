@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { calculateEfficiencyScore } from "../utils/efficiency";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const projectsRouter = router({
   // Get paginated projects for the user's tenant
@@ -350,8 +351,9 @@ export const projectsRouter = router({
 
   getOnboardingStatus: managerProcedure.query(async ({ ctx }) => {
     const { supabase } = ctx;
+    const adminClient = createAdminClient();
 
-    const profile = await supabase
+    const profile = await adminClient
       .from("users")
       .select("tenant_id")
       .eq("id", ctx.userId)
@@ -360,7 +362,7 @@ export const projectsRouter = router({
     const activeTenantId = profile.data?.tenant_id;
 
     const [staffCount, projectCount, proofReviewCount] = await Promise.all([
-      supabase
+      adminClient
         .from("users")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", activeTenantId)

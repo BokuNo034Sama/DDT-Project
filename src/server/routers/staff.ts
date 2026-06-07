@@ -16,9 +16,9 @@ export const staffRouter = router({
       }).optional()
     )
     .query(async ({ ctx, input }) => {
-      const { supabase } = ctx;
+      const adminClient = createAdminClient();
 
-      const profile = await supabase
+      const profile = await adminClient
         .from("users")
         .select("tenant_id")
         .eq("id", ctx.userId)
@@ -26,7 +26,7 @@ export const staffRouter = router({
 
       const activeTenantId = profile.data?.tenant_id;
 
-      let query = supabase
+      let query = adminClient
         .from("users")
         .select("*")
         .eq("tenant_id", activeTenantId)
