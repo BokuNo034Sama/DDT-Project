@@ -13,7 +13,14 @@ interface StaffDashboardProps {
 
 export function StaffDashboard({ userName }: StaffDashboardProps) {
   const utils = trpc.useUtils();
-  const { data: assignments, isLoading, error } = trpc.stages.getMyStages.useQuery();
+  const { data: assignments, isLoading, error } = trpc.stages.getMyStages.useQuery(
+    undefined,
+    {
+      refetchInterval: 5000,          // Auto-refresh data from server every 5 seconds
+      refetchOnWindowFocus: true,     // Re-sync instantly when they open their phone screen
+      refetchOnMount: true
+    }
+  );
   const supabase = createClient();
 
   useEffect(() => {
