@@ -42,14 +42,31 @@ export function NotificationPanel() {
   const prevUnreadCountRef = useRef<number>(0);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const unreadTasks = notifications?.filter((n: any) => !n.is_read && n.type === 'task_assigned') || [];
     
     if (unreadTasks.length > prevUnreadCountRef.current) {
-      // Play the audio asset safely, catching and ignoring browser autoplay permission rejections
+      // A. Fire the mobile-optimized chime audio stream
       const chime = new Audio('/sounds/chime.mp3');
-      chime.play().catch((err) => {
-        console.log("Audio playback delayed until user interacts with the screen:", err);
-      });
+      chime.play().catch(err => console.log("Audio playback waiting for interaction:", err));
+
+      // B. Trigger the native mobile OS slide-down notification banner
+      if ('serviceWorker' in navigator && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          const latestTask = unreadTasks[unreadTasks.length - 1];
+          
+          // Fetch the active mobile browser registration capsule
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification("DDT Structure: New Assignment", {
+              body: latestTask.body || "You have been assigned a new task stage.",
+              icon: "/icons/icon-192x192.png", // Ensure this points to a valid public PWA asset path
+              badge: "/icons/icon-192x192.png",
+              vibrate: [200, 100, 200], // Add haptic pulse for Android devices
+            } as any);
+          });
+        }
+      }
     }
     
     // Update the reference pointer state
