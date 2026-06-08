@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -34,35 +35,54 @@ export function SiteVisitModal({
   const { toast } = useToast();
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split("T")[0]);
-  const [numberOfFloors, setNumberOfFloors] = useState<number | "">(
-    project.number_of_floors ?? ""
-  );
+
+  const { register, getValues, reset } = useForm<{ floors: number | "" }>({
+    defaultValues: {
+      floors: project?.number_of_floors ?? "",
+    },
+  });
 
   // Sync state whenever the modal opens
   useEffect(() => {
     if (isOpen) {
-      setNumberOfFloors(project.number_of_floors ?? "");
+      reset({
+        floors: project?.number_of_floors ?? "",
+      });
     }
-  }, [isOpen, project.number_of_floors]);
+  }, [isOpen, project?.number_of_floors, reset]);
 
   // Get active staff members in the tenant
   const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
 
   const utils = trpc.useUtils();
   const addVisitMutation = trpc.siteVisits.add.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Site Visit Logged",
         description: "Site attendance has been recorded successfully.",
       });
 
-      utils.projects.getById.invalidate({ id: project.id });
-      utils.siteVisits.listByProject.invalidate({ projectId: project.id });
+      // 1. Force the parent project dashboard timeline to reload explicitly
+      await utils.projects.getById.invalidate({ id: project.id });
+      
+      // 2. Force the active team directory lists to sync
+      await utils.staff.list.invalidate();
+      
+      // 3. Force the global operations dashboard widgets to recalculate
+      await utils.projects.getDashboardData.invalidate();
+      await utils.projects.getOnboardingStatus.invalidate();
+      
+      // Also invalidate the visits list
+      await utils.siteVisits.listByProject.invalidate({ projectId: project.id });
+
+      // 4. Trigger form close actions here
       onOpenChange(false);
       // Reset form states
       setSelectedStaffIds([]);
       setVisitDate(new Date().toISOString().split("T")[0]);
-      setNumberOfFloors(project.number_of_floors ?? "");
+      reset({
+        floors: project?.number_of_floors ?? "",
+      });
       if (onSuccess) onSuccess();
     },
     onError: (error) => {
@@ -110,17 +130,21 @@ export function SiteVisitModal({
       return;
     }
 
+    const floorsValue = getValues("floors");
     addVisitMutation.mutate({
       projectId: project.id,
       staffIds: selectedStaffIds,
       visitDate,
-      numberOfFloors: numberOfFloors === "" ? undefined : Number(numberOfFloors),
+      numberOfFloors: floorsValue === "" || floorsValue === undefined ? undefined : Number(floorsValue),
     });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-ddt-surface border border-ddt-border text-ddt-text max-w-md w-[95%] sm:w-full rounded-xl">
+      <DialogContent
+        key={project?.id ? `visit-modal-${project.id}` : 'visit-modal-loading'}
+        className="bg-ddt-surface border border-ddt-border text-ddt-text max-w-md w-[95%] sm:w-full rounded-xl"
+      >
         <DialogHeader className="text-left">
           <DialogTitle className="font-syne text-lg font-bold text-ddt-accent uppercase tracking-wide flex items-center gap-2">
             <CalendarRange className="w-5 h-5" />
@@ -155,9 +179,8 @@ export function SiteVisitModal({
             <Input
               id="floors"
               type="number"
-              min={0}
-              value={numberOfFloors}
-              onChange={(e) => setNumberOfFloors(e.target.value === "" ? "" : Number(e.target.value))}
+              defaultValue={project?.number_of_floors}
+              {...register("floors")}
               placeholder="e.g. 3"
               className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
             />

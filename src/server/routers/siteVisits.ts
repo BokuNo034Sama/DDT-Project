@@ -110,21 +110,21 @@ export const siteVisitsRouter = router({
     .query(async ({ ctx, input }) => {
       const adminClient = createAdminClient();
 
-      const { data, error } = await adminClient
-        .from("site_visits")
+      const { data: visits, error } = await adminClient
+        .from('site_visits')
         .select(`
           *,
           staff_user:users!site_visits_staff_id_fkey (
             full_name
           )
         `)
-        .eq("project_id", input.projectId)
-        .order("visit_date", { ascending: false });
+        .eq('project_id', input.projectId)
+        .order('visit_date', { ascending: false });
 
       if (error) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       }
 
-      return data;
+      return visits;
     }),
 });

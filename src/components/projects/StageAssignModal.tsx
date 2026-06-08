@@ -40,7 +40,7 @@ export function StageAssignModal({
 
   const utils = trpc.useUtils();
   const assignMutation = trpc.stages.assign.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async () => {
       const assignedUser = staffList?.find((u: any) => u.id === selectedStaffId);
       const nameStr = assignedUser ? assignedUser.full_name : "Unassigned";
 
@@ -49,8 +49,17 @@ export function StageAssignModal({
         description: `Successfully assigned the ${stage.replace("_", " ")} stage to ${nameStr}.`,
       });
 
-      utils.projects.getById.invalidate({ id: projectId });
-      utils.projects.getOnboardingStatus.invalidate();
+      // 1. Force the parent project dashboard timeline to reload explicitly
+      await utils.projects.getById.invalidate({ id: projectId });
+      
+      // 2. Force the active team directory lists to sync
+      await utils.staff.list.invalidate();
+      
+      // 3. Force the global operations dashboard widgets to recalculate
+      await utils.projects.getDashboardData.invalidate();
+      await utils.projects.getOnboardingStatus.invalidate();
+      
+      // 4. Trigger form close actions here
       onOpenChange(false);
       if (onSuccess) onSuccess();
     },
