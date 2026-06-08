@@ -47,22 +47,23 @@ export function NotificationPanel() {
     const unreadTasks = notifications?.filter((n: any) => !n.is_read && n.type === 'task_assigned') || [];
     
     if (unreadTasks.length > prevUnreadCountRef.current) {
-      // A. Fire the mobile-optimized chime audio stream
-      const chime = new Audio('/sounds/chime.mp3');
-      chime.play().catch(err => console.log("Audio playback waiting for interaction:", err));
-
-      // B. Trigger the native mobile OS slide-down notification banner
       if ('serviceWorker' in navigator && 'Notification' in window) {
         if (Notification.permission === 'granted') {
           const latestTask = unreadTasks[unreadTasks.length - 1];
           
-          // Fetch the active mobile browser registration capsule
           navigator.serviceWorker.ready.then((registration) => {
             registration.showNotification("DDT Structure: New Assignment", {
               body: latestTask.body || "You have been assigned a new task stage.",
-              icon: "/icons/icon-192x192.png", // Ensure this points to a valid public PWA asset path
+              icon: "/icons/icon-192x192.png",
               badge: "/icons/icon-192x192.png",
-              vibrate: [200, 100, 200], // Add haptic pulse for Android devices
+              
+              // EXPLICIT MOBILE NATIVE SOUND & BANNER SETTINGS:
+              silent: false,                // Force the phone to play its default notification tone
+              renotify: true,               // Force the phone to sound/vibrate even if a previous alert is visible
+              tag: "task-assignment-alert", // Groups alerts and prevents layout spamming
+              requireInteraction: true,     // Keeps the notification bar visible on screen until tapped
+              
+              vibrate: [200, 100, 200],     // Triggers standard haptic vibration pulses on Android
             } as any);
           });
         }
