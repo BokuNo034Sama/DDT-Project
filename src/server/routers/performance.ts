@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { calculateEfficiencyScore } from "../utils/efficiency";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const performanceRouter = router({
   // Aggregated stats for month + staff
@@ -14,17 +15,27 @@ export const performanceRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const adminClient = createAdminClient();
+
+      // Resolve the database-level tenant configuration directly from users profile
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const activeTenantId = profile.data?.tenant_id || ctx.tenantId;
 
       // Ensure start and end dates cover the requested month
       const startDate = new Date(input.year, input.month - 1, 1).toISOString();
       const endDate = new Date(input.year, input.month, 0, 23, 59, 59).toISOString();
 
-      // Get users
-      let usersQuery = supabase
+      // Get users via adminClient
+      let usersQuery = adminClient
         .from("users")
         .select("id, full_name, role")
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", activeTenantId)
+        .eq("is_active", true)
         .in("role", ["staff", "ops_manager"]);
 
       if (input.staffId) {
@@ -40,28 +51,28 @@ export const performanceRouter = router({
       type UserType = { id: string; full_name: string; role: string };
       const users: UserType[] = usersData || [];
 
-      // Fetch all relevant data for the period
+      // Fetch all relevant data for the period using adminClient
       const [assignmentsData, siteVisitsData, faultsData] = await Promise.all([
         // Completed stage assignments
-        supabase
+        adminClient
           .from("project_stage_assignments")
           .select("*, projects(ndt_code)")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", activeTenantId)
           .eq("status", "completed")
           .gte("completed_at", startDate)
           .lte("completed_at", endDate),
         // Site visits
-        supabase
+        adminClient
           .from("site_visits")
           .select("*, projects(ndt_code, client_name, number_of_floors)")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", activeTenantId)
           .gte("visit_date", startDate)
           .lte("visit_date", endDate),
         // Proofread faults (where result = fail)
-        supabase
+        adminClient
           .from("proof_reviews")
           .select("*, projects(ndt_code)")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", activeTenantId)
           .eq("result", "fail")
           .gte("reviewed_at", startDate)
           .lte("reviewed_at", endDate)
