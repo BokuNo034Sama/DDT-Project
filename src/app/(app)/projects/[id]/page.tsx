@@ -13,7 +13,13 @@ import { ArrowLeft } from "lucide-react";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { data: project, isLoading, error } = trpc.projects.getById.useQuery({ id });
+  const { data: project, isLoading, error } = trpc.projects.getById.useQuery(
+    { id },
+    {
+      refetchInterval: 5000,
+      refetchOnWindowFocus: true,
+    }
+  );
 
   const title = isLoading ? "Loading Project..." : project?.client_name;
 

@@ -202,24 +202,16 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
                 {/* Assignee Section */}
                 <div className="my-4">
-                  {assignment?.assigned_user ? (
+                  {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
                     <div className="flex items-center justify-between gap-2">
                       <UserPill
-                        name={assignment.assigned_user.full_name}
-                        avatarInitials={assignment.assigned_user.full_name
+                        name={assignment.assigned_user?.full_name || "Assigned Technician"}
+                        avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
                           .split(" ")
                           .map((n: string) => n[0])
                           .join("")
                           .substring(0, 2)}
                       />
-                      {isManager && (
-                        <button
-                          onClick={() => setAssignStage(stage.id)}
-                          className="text-[10px] text-ddt-muted hover:text-ddt-accent hover:underline"
-                        >
-                          Reassign
-                        </button>
-                      )}
                     </div>
                   ) : (
                     <div>

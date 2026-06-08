@@ -54,14 +54,24 @@ export const projectsRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
-      const { data: project, error: projectError } = await supabase
+      const adminClient = createAdminClient();
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const activeTenantId = profile.data?.tenant_id || ctx.tenantId;
+
+      const { data: project, error: projectError } = await adminClient
         .from("projects")
         .select(`
           *,
           project_stage_assignments (
             *,
-            assigned_user:users!project_stage_assignments_assigned_to_fkey (id, full_name, role)
+            assigned_user:users!project_stage_assignments_assigned_to_fkey (
+              full_name
+            )
           ),
           site_visits (
             *,
@@ -77,7 +87,7 @@ export const projectsRouter = router({
           )
         `)
         .eq("id", input.id)
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", activeTenantId)
         .single();
 
       if (projectError) {

@@ -12,7 +12,7 @@ export type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export type ProjectWithRelations = Project & {
   project_stage_assignments?: (StageAssignment & {
-    assigned_user: { id: string; full_name: string; role: string } | null;
+    assigned_user: { id?: string; full_name: string; role?: string } | null;
   })[];
   site_visits?: (SiteVisit & {
     staff_user: { id: string; full_name: string; role: string } | null;
