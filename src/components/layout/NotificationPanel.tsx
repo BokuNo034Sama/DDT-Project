@@ -39,6 +39,23 @@ export function NotificationPanel() {
     onSuccess: () => utils.notifications.list.invalidate(),
   });
 
+  const prevUnreadCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    const unreadTasks = notifications?.filter((n: any) => !n.is_read && n.type === 'task_assigned') || [];
+    
+    if (unreadTasks.length > prevUnreadCountRef.current) {
+      // Play the audio asset safely, catching and ignoring browser autoplay permission rejections
+      const chime = new Audio('/sounds/chime.mp3');
+      chime.play().catch((err) => {
+        console.log("Audio playback delayed until user interacts with the screen:", err);
+      });
+    }
+    
+    // Update the reference pointer state
+    prevUnreadCountRef.current = unreadTasks.length;
+  }, [notifications]);
+
   const supabase = createClient();
 
   // Real-time subscription
