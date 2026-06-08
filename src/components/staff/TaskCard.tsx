@@ -86,11 +86,16 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
   });
 
   const handleStart = () => {
-    startMutation.mutate({ assignmentId: assignment.id });
+    console.log('Stage assignment data:', assignment);
+    console.log('Starting ID:', assignment.id);
+    const stageAssignmentId = assignment.id;
+    console.log('Starting stage with ID:', stageAssignmentId);
+    startMutation.mutate({ stageAssignmentId });
   };
 
   const handleComplete = () => {
-    completeMutation.mutate({ assignmentId: assignment.id });
+    const stageAssignmentId = assignment.id;
+    completeMutation.mutate({ stageAssignmentId });
   };
 
   const getStageIcon = (stage: string) => {

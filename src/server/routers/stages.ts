@@ -122,103 +122,108 @@ export const stagesRouter = router({
 
   // Record start time for a stage
   start: protectedProcedure
-    .input(
-      z.object({
-        assignmentId: z.string().uuid(),
-      })
-    )
+    .input(z.object({ stageAssignmentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId, userId } = ctx;
-
-      const { data: assignment, error: checkError } = await supabase
+      const adminClient = createAdminClient();
+      
+      // Look up assignment using adminClient
+      const { data: assignment, error } = await adminClient
         .from("project_stage_assignments")
-        .select("*")
-        .eq("id", input.assignmentId)
-        .eq("tenant_id", tenantId)
+        .select("*, projects(tenant_id)")
+        .eq("id", input.stageAssignmentId)
         .single();
-
-      if (checkError || !assignment) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
+      
+      if (error || !assignment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Assignment not found",
+        });
       }
-
-      if (assignment.assigned_to !== userId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "You are not assigned to this task" });
+      
+      // Verify ownership or manager role
+      const isOwner = assignment.assigned_to === ctx.userId;
+      const isManager = ["ops_manager", "lab_owner", "super_admin"].includes(ctx.role ?? "");
+      
+      if (!isOwner && !isManager) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not authorized to start this task",
+        });
       }
-
-      const { data, error } = await supabase
+      
+      // Update started_at using adminClient
+      const { error: updateError } = await adminClient
         .from("project_stage_assignments")
-        .update({
+        .update({ 
           started_at: new Date().toISOString(),
           status: "in_progress",
         })
-        .eq("id", input.assignmentId)
-        .eq("tenant_id", tenantId)
-        .select()
-        .single();
-
-      if (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+        .eq("id", input.stageAssignmentId);
+      
+      if (updateError) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to start task",
+        });
       }
-
+      
       // Automatically advance project to WIP if it's currently not_started
-      const { data: project } = await supabase
+      const { data: projectRecord } = await adminClient
         .from("projects")
         .select("status")
         .eq("id", assignment.project_id)
         .single();
 
-      if (project?.status === "not_started") {
-        await supabase
+      if (projectRecord?.status === "not_started") {
+        await adminClient
           .from("projects")
           .update({ status: "wip", updated_at: new Date().toISOString() })
           .eq("id", assignment.project_id);
           
-        await supabase.from("status_history").insert({
+        await adminClient.from("status_history").insert({
           project_id: assignment.project_id,
-          tenant_id: tenantId,
+          tenant_id: assignment.tenant_id,
           from_status: "not_started",
           to_status: "wip",
-          changed_by: userId,
+          changed_by: ctx.userId,
           notes: "Auto-advanced because a stage was started",
         });
       }
-
-      return data;
+      
+      return { success: true };
     }),
 
   // Mark a stage as complete
   complete: protectedProcedure
-    .input(
-      z.object({
-        assignmentId: z.string().uuid(),
-      })
-    )
+    .input(z.object({ stageAssignmentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId, userId } = ctx;
+      const adminClient = createAdminClient();
 
-      const { data: assignment, error: checkError } = await supabase
+      const { data: assignment, error: checkError } = await adminClient
         .from("project_stage_assignments")
         .select("*, projects(ndt_code)")
-        .eq("id", input.assignmentId)
-        .eq("tenant_id", tenantId)
+        .eq("id", input.stageAssignmentId)
         .single();
 
       if (checkError || !assignment) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
       }
 
-      if (assignment.assigned_to !== userId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "You are not assigned to this task" });
+      // Verify ownership or manager role
+      const isOwner = assignment.assigned_to === ctx.userId;
+      const isManager = ["ops_manager", "lab_owner", "super_admin"].includes(ctx.role ?? "");
+
+      if (!isOwner && !isManager) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to complete this task" });
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await adminClient
         .from("project_stage_assignments")
         .update({
           completed_at: new Date().toISOString(),
           status: "completed",
         })
-        .eq("id", input.assignmentId)
-        .eq("tenant_id", tenantId)
+        .eq("id", input.stageAssignmentId)
         .select()
         .single();
 
@@ -227,22 +232,22 @@ export const stagesRouter = router({
       }
 
       // Notify Ops Manager
-      await supabase.from("notifications").insert({
-        tenant_id: tenantId,
+      await adminClient.from("notifications").insert({
+        tenant_id: assignment.tenant_id,
         user_id: assignment.assigned_by, // Notify the manager who assigned it
         type: "stage_completed",
         title: `Task Completed: ${assignment.stage}`,
         body: `Stage ${assignment.stage} completed for project ${assignment.projects?.ndt_code}.`,
         related_project_id: assignment.project_id,
+        is_read: false,
       });
 
       // Call the RPC function to auto-advance the project status based on the completed stage
-      // The PRD specifies advance_project_status(p_project_id, p_stage)
-      await supabase.rpc("advance_project_status", {
+      await adminClient.rpc("advance_project_status", {
         p_project_id: assignment.project_id,
         p_stage: assignment.stage,
       });
 
-      return data;
+      return { success: true };
     }),
 });
