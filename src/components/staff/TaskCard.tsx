@@ -26,6 +26,8 @@ interface TaskCardProps {
     stage: "analysis" | "sketch" | "report_writing" | "proofreading";
     status: "pending" | "in_progress" | "completed" | "failed";
     assigned_at: string;
+    started_at?: string | null;
+    completed_at?: string | null;
     project: {
       id: string;
       ndt_code: string;
@@ -67,13 +69,13 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
   });
 
   const completeMutation = trpc.stages.complete.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Task Completed",
         description: `Successfully completed the ${getStageLabel(assignment.stage)} stage.`,
       });
-      utils.stages.getMyStages.invalidate();
-      utils.projects.getById.invalidate();
+      await utils.stages.getMyStages.invalidate();
+      await utils.projects.getById.invalidate();
       if (onSuccess) onSuccess();
     },
     onError: (error) => {
@@ -119,7 +121,9 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
   };
 
   const isPending = assignment.status === "pending";
-  const isInProgress = assignment.status === "in_progress";
+  const isInProgress =
+    assignment.status === "in_progress" ||
+    (!!assignment.started_at && !assignment.completed_at);
   const isMutating = startMutation.isPending || completeMutation.isPending;
 
   return (

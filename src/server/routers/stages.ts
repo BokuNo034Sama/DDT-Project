@@ -201,7 +201,7 @@ export const stagesRouter = router({
 
       const { data: assignment, error: checkError } = await adminClient
         .from("project_stage_assignments")
-        .select("*, projects(ndt_code)")
+        .select("*")
         .eq("id", input.stageAssignmentId)
         .single();
 
@@ -217,36 +217,85 @@ export const stagesRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to complete this task" });
       }
 
-      const { data, error } = await adminClient
+      // A. Update Assignment State
+      const { error: updateError } = await adminClient
         .from("project_stage_assignments")
         .update({
           completed_at: new Date().toISOString(),
           status: "completed",
         })
-        .eq("id", input.stageAssignmentId)
-        .select()
-        .single();
+        .eq("id", input.stageAssignmentId);
 
-      if (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      if (updateError) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: updateError.message });
       }
 
-      // Notify Ops Manager
-      await adminClient.from("notifications").insert({
-        tenant_id: assignment.tenant_id,
-        user_id: assignment.assigned_by, // Notify the manager who assigned it
-        type: "stage_completed",
-        title: `Task Completed: ${assignment.stage}`,
-        body: `Stage ${assignment.stage} completed for project ${assignment.projects?.ndt_code}.`,
-        related_project_id: assignment.project_id,
-        is_read: false,
-      });
+      // B. Advance Parent Project Status
+      const { data: projectRecord, error: projectError } = await adminClient
+        .from("projects")
+        .select("status, ndt_code")
+        .eq("id", assignment.project_id)
+        .single();
 
-      // Call the RPC function to auto-advance the project status based on the completed stage
-      await adminClient.rpc("advance_project_status", {
-        p_project_id: assignment.project_id,
-        p_stage: assignment.stage,
-      });
+      if (projectError || !projectRecord) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Parent project not found" });
+      }
+
+      let nextProjectStatus: string | null = null;
+      if (assignment.stage === "analysis") {
+        nextProjectStatus = "analysis_done";
+      } else if (assignment.stage === "sketch") {
+        nextProjectStatus = "sketch_done";
+      } else if (assignment.stage === "report_writing") {
+        nextProjectStatus = "report_done";
+      }
+
+      if (nextProjectStatus && nextProjectStatus !== projectRecord.status) {
+        const { error: updateProjectError } = await adminClient
+          .from("projects")
+          .update({
+            status: nextProjectStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", assignment.project_id);
+
+        if (updateProjectError) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update project status" });
+        }
+
+        // C. Append Audit Trail (status_history)
+        const { error: historyError } = await adminClient
+          .from("status_history")
+          .insert({
+            project_id: assignment.project_id,
+            tenant_id: assignment.tenant_id,
+            from_status: projectRecord.status,
+            to_status: nextProjectStatus,
+            changed_by: ctx.userId,
+            notes: `Auto-advanced because stage ${assignment.stage} was completed`,
+          });
+
+        if (historyError) {
+          console.error("Failed to append status history:", historyError);
+        }
+      }
+
+      // C. Managers Notification (notifications)
+      const { error: notificationError } = await adminClient
+        .from("notifications")
+        .insert({
+          tenant_id: assignment.tenant_id,
+          user_id: assignment.assigned_by, // Notify the manager who assigned it
+          type: "stage_completed",
+          title: `Task Completed: ${assignment.stage}`,
+          body: `Stage ${assignment.stage} completed for project ${projectRecord.ndt_code}.`,
+          related_project_id: assignment.project_id,
+          is_read: false,
+        });
+
+      if (notificationError) {
+        console.error("Failed to insert notification:", notificationError);
+      }
 
       return { success: true };
     }),
