@@ -54,6 +54,7 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
         description: `You have started work on the ${getStageLabel(assignment.stage)} stage.`,
       });
       utils.stages.getMyStages.invalidate();
+      utils.projects.getById.invalidate();
       if (onSuccess) onSuccess();
     },
     onError: (error) => {
@@ -72,6 +73,7 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
         description: `Successfully completed the ${getStageLabel(assignment.stage)} stage.`,
       });
       utils.stages.getMyStages.invalidate();
+      utils.projects.getById.invalidate();
       if (onSuccess) onSuccess();
     },
     onError: (error) => {
@@ -204,17 +206,17 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
           <Button
             onClick={handleComplete}
             disabled={isMutating}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold h-[48px] rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/5"
+            className="w-full bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold h-[48px] rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-ddt-lime/5"
           >
             {isMutating ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <span className="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
                 <span>Completing...</span>
               </span>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                <span>Complete Task</span>
+                <span>Mark Complete</span>
               </>
             )}
           </Button>
