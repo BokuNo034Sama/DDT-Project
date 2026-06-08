@@ -93,7 +93,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
             )}
           </div>
         ) : (
-          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+          <div className="space-y-3 pr-1">
             {visits.map((visit) => {
               const staffName = visit.staff_user?.full_name || "Unknown Technician";
               const initials = staffName
