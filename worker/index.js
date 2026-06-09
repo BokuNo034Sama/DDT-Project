@@ -1,3 +1,13 @@
+// Forces the waiting service worker to become the active service worker immediately
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+// Forces the active worker to immediately control all open tabs
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // Custom fetch event listener for next-pwa custom worker
 self.addEventListener('fetch', (event) => {
   // Only intercept and return the full-screen offline asset for true page navigation requests

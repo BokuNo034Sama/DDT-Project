@@ -1,0 +1,1 @@
+self.addEventListener("install",e=>{self.skipWaiting()}),self.addEventListener("activate",e=>{e.waitUntil(self.clients.claim())}),self.addEventListener("fetch",e=>{"navigate"!==e.request.mode?e.respondWith(caches.match(e.request).then(t=>t||fetch(e.request))):e.respondWith(fetch(e.request).catch(()=>caches.match("/offline")||caches.match("/offline.html")))});

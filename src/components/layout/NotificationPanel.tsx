@@ -47,6 +47,13 @@ export function NotificationPanel() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    if (!('serviceWorker' in navigator)) {
+      console.log("DIAGNOSTIC: Service workers are completely disabled on this connection. Ensure you are running on HTTPS.");
+    }
+    if (!('Notification' in window)) {
+      console.log("DIAGNOSTIC: Native Notification API is missing or blocked by this mobile browser engine.");
+    }
+
     const unreadTasks = notifications?.filter((n: any) => !n.is_read && ['task_assigned', 'site_inspection', 'report_error'].includes(n.type)) || [];
     
     if (unreadTasks.length > prevUnreadCountRef.current) {
@@ -81,7 +88,9 @@ export function NotificationPanel() {
               tag: tagString,                // Segregates alerts to prevent device grouping suppression
               requireInteraction: true,      // Keeps the alert banner pinned to the mobile screen until addressed
               vibrate: [200, 100, 200]       // Triggers a sharp haptic vibration sequence on Android
-            } as any);
+            } as any).catch(err => {
+              console.error("Mobile OS rejected showNotification execution:", err);
+            });
           });
         }
       }
