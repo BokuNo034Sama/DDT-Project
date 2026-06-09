@@ -63,75 +63,71 @@ export function useWebPush() {
 
   // Subscribe user
   const subscribeUser = useCallback(async () => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setError("Push notifications are not supported in this browser.");
-      return;
-    }
-
     try {
       setLoading(true);
-      setError(null);
-
-      // Request/Verify Notification permission
-      let permission = Notification.permission;
-      console.log('Push permission:', permission);
-      if (permission === 'denied') {
-        alert("Enable notifications in browser settings");
-        throw new Error("Push permission is denied in browser settings.");
-      } else if (permission === 'default') {
-        permission = await Notification.requestPermission();
-        console.log('Push permission after request:', permission);
-        if (permission !== 'granted') {
-          throw new Error("Notification permission denied by user.");
-        }
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      console.log('SW ready:', registration);
+      console.log('Step 1: Checking SW support...');
       
-      // Get the VAPID key
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BLrMnX_JxffaeQ5UVIEFzjctZuKzV48dSzH_Z1HoEMeNGVAs20wqfs6kG-U7C9i4ker9MFabCMvGiwMHZqFj3n4";
-      if (!vapidPublicKey) {
-        throw new Error("VAPID public key is missing in environmental variables.");
+      if (!('serviceWorker' in navigator)) {
+        console.error('Service Worker not supported');
+        return;
       }
-
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-
-      // Subscribe to PushManager
+      
+      if (!('PushManager' in window)) {
+        console.error('Push API not supported');
+        return;
+      }
+      
+      console.log('Step 2: Getting SW registration...');
+      const registration = await navigator.serviceWorker.ready;
+      console.log('SW registration:', registration);
+      
+      console.log('Step 3: Checking permission...');
+      const permission = await Notification.requestPermission();
+      console.log('Permission result:', permission);
+      
+      if (permission !== 'granted') {
+        console.error('Permission denied:', permission);
+        return;
+      }
+      
+      console.log('Step 4: Getting VAPID key...');
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BLrMnX_JxffaeQ5UVIEFzjctZuKzV48dSzH_Z1HoEMeNGVAs20wqfs6kG-U7C9i4ker9MFabCMvGiwMHZqFj3n4";
+      console.log('VAPID key exists:', !!vapidKey);
+      console.log('VAPID key length:', vapidKey?.length);
+      
+      if (!vapidKey) {
+        console.error('VAPID public key is missing!');
+        return;
+      }
+      
+      console.log('Step 5: Converting VAPID key...');
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey);
+      console.log('Key converted:', applicationServerKey.length, 'bytes');
+      
+      console.log('Step 6: Subscribing to push...');
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as any,
+        applicationServerKey: applicationServerKey as any
       });
-
-      // Extract raw keys
-      const rawSubscription = subscription.toJSON();
-      const p256dh = rawSubscription.keys?.p256dh;
-      const auth = rawSubscription.keys?.auth;
-
-      if (!subscription.endpoint || !p256dh || !auth) {
-        throw new Error("Failed to retrieve standard subscription keys.");
-      }
-
-      // Sync with database
-      console.log('Saving subscription:', subscription);
-      try {
-        await saveSubscriptionMutation.mutateAsync({
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh,
-            auth,
-          },
-        });
-        console.log('Subscription saved successfully');
-      } catch (err) {
-        console.error('Save subscription error:', err);
-        throw err;
-      }
-
+      console.log('Subscription created:', subscription.endpoint);
+      
+      console.log('Step 7: Saving to database...');
+      const subscriptionJSON = subscription.toJSON();
+      console.log('Subscription JSON:', subscriptionJSON);
+      
+      await saveSubscriptionMutation.mutateAsync({
+        endpoint: subscriptionJSON.endpoint!,
+        auth: subscriptionJSON.keys!.auth!,
+        p256dh: subscriptionJSON.keys!.p256dh!,
+      });
+      
+      console.log('Step 8: Saved successfully!');
       setIsSubscribed(true);
-    } catch (err: any) {
-      console.error("Failed to subscribe user to Web Push:", err);
-      setError(err.message || "Subscription failed");
+      
+    } catch (error: any) {
+      console.error('Push subscription failed:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
     } finally {
       setLoading(false);
     }

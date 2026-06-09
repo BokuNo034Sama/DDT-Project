@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const notificationsRouter = router({
   // Get current user's notifications
@@ -53,41 +54,45 @@ export const notificationsRouter = router({
     }),
 
   saveSubscription: protectedProcedure
-    .input(
-      z.object({
-        endpoint: z.string().url(),
-        keys: z.object({
-          p256dh: z.string(),
-          auth: z.string(),
-        }),
-      })
-    )
+    .input(z.object({
+      endpoint: z.string(),
+      auth: z.string(),
+      p256dh: z.string(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId, userId } = ctx;
-
-      const { data, error } = await supabase
-        .from("user_push_subscriptions")
-        .upsert(
-          {
-            user_id: userId,
-            tenant_id: tenantId,
-            endpoint: input.endpoint,
-            p256dh_key: input.keys.p256dh,
-            auth_key: input.keys.auth,
-            created_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "endpoint",
-          }
-        )
-        .select()
-        .single();
-
+      const adminClient = createAdminClient()
+      
+      // Get tenant_id from users table
+      const { data: user } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
+      
+      console.log('Saving for user:', ctx.userId)
+      console.log('Tenant:', user?.tenant_id)
+      
+      const { error } = await adminClient
+        .from('user_push_subscriptions')
+        .upsert({
+          user_id: ctx.userId,
+          tenant_id: user?.tenant_id,
+          endpoint: input.endpoint,
+          auth_key: input.auth,
+          p256dh_key: input.p256dh,
+        }, {
+          onConflict: 'endpoint'
+        })
+      
       if (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+        console.error('DB insert error:', error)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
       }
-
-      return data;
+      
+      return { success: true }
     }),
 
   savePushSubscription: protectedProcedure

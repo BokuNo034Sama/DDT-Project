@@ -139,37 +139,28 @@ export function NotificationPanel() {
             </div>
           </div>
 
-          {/* Web Push Settings Toggle */}
+          {/* Web Push Settings Toggle Button */}
           {isSupported && (
-            <div className="px-4 py-3 bg-ddt-surface border-b border-ddt-border flex items-center justify-between gap-4 select-none">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-ddt-text font-syne uppercase tracking-wider">
-                  Push Notifications
-                </span>
-                <span className="text-[10px] text-ddt-muted mt-0.5 font-medium">
-                  {isSubscribed ? "Enabled on this device" : "Receive real-time alerts"}
-                </span>
-              </div>
+            <div className="px-4 py-3 border-b border-ddt-border bg-ddt-raised/50 flex flex-col gap-2">
               <button
-                id="push-notification-toggle"
+                id="push-notification-toggle-btn"
                 onClick={isSubscribed ? unsubscribeUser : subscribeUser}
                 disabled={pushLoading}
                 className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-ddt-accent disabled:opacity-50",
-                  isSubscribed ? "bg-ddt-accent" : "bg-ddt-border"
+                  "w-full py-2 bg-[#141C2E] border-2 border-[#A3E635] rounded-xl text-white font-bold text-xs text-center shadow-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2",
+                  pushLoading && "opacity-50 cursor-not-allowed"
                 )}
-                title={isSubscribed ? "Disable push notifications" : "Enable push notifications"}
               >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center",
-                    isSubscribed ? "translate-x-4" : "translate-x-0"
-                  )}
-                >
-                  {pushLoading && (
-                    <span className="w-2 h-2 border-t-2 border-ddt-accent rounded-full animate-spin" />
-                  )}
-                </span>
+                {pushLoading ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-t-transparent border-current rounded-full animate-spin" />
+                    <span>Enabling...</span>
+                  </>
+                ) : isSubscribed ? (
+                  <span>Push Enabled ✓</span>
+                ) : (
+                  <span>Enable Push</span>
+                )}
               </button>
             </div>
           )}
