@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { TaskCard } from "./TaskCard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { ClipboardList, AlertTriangle } from "lucide-react";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 interface StaffDashboardProps {
   userName: string;
@@ -13,13 +14,15 @@ interface StaffDashboardProps {
 
 export function StaffDashboard({ userName }: StaffDashboardProps) {
   const utils = trpc.useUtils();
+  const isOnline = useNetworkStatus();
   const { data: assignments, isLoading, error } = trpc.stages.getMyStages.useQuery(
     undefined,
     {
-      refetchInterval: 5000,          // Auto-refresh data from server every 5 seconds
+      refetchInterval: isOnline ? 5000 : false,          // Auto-refresh data from server every 5 seconds
       refetchOnWindowFocus: true,     // Re-sync instantly when they open their phone screen
-      refetchOnMount: true
-    }
+      refetchOnMount: true,
+      networkMode: "offlineFirst",
+    } as any
   );
   const supabase = createClient();
 

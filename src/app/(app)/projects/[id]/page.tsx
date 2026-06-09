@@ -10,15 +10,18 @@ import { StatusHistory } from "@/components/projects/StatusHistory";
 import { TopBar } from "@/components/layout/TopBar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
+  const isOnline = useNetworkStatus();
   const { data: project, isLoading, error } = trpc.projects.getById.useQuery(
     { id },
     {
-      refetchInterval: 5000,
+      refetchInterval: isOnline ? 5000 : false,
       refetchOnWindowFocus: true,
-    }
+      networkMode: "offlineFirst",
+    } as any
   );
 
   const title = isLoading ? "Loading Project..." : project?.client_name;

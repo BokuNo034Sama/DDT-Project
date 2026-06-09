@@ -22,6 +22,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -30,6 +31,7 @@ interface PipelineBarProps {
 }
 
 export function PipelineBar({ project }: PipelineBarProps) {
+  const isOnline = useNetworkStatus();
   // Modals visibility state
   const [assignStage, setAssignStage] = useState<"analysis" | "sketch" | "report_writing" | "proofreading" | null>(null);
   const [isProofOpen, setIsProofOpen] = useState(false);
@@ -217,8 +219,14 @@ export function PipelineBar({ project }: PipelineBarProps) {
                     <div>
                       {isManager ? (
                         <Button
-                          onClick={() => setAssignStage(stage.id)}
-                          className="bg-transparent hover:bg-ddt-accent/5 border border-dashed border-ddt-border hover:border-ddt-accent text-ddt-muted hover:text-ddt-accent transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg"
+                          onClick={() => isOnline && setAssignStage(stage.id)}
+                          disabled={!isOnline}
+                          className={cn(
+                            "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
+                            isOnline
+                              ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
+                              : "cursor-not-allowed opacity-50 bg-ddt-input"
+                          )}
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           <span>Assign Staff</span>

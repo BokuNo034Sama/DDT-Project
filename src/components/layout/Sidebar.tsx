@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileWithTenant } from "@/types";
 import { User as AuthUser } from "@supabase/supabase-js";
 import { TrialBanner } from "@/components/billing/TrialBanner";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 interface SidebarProps {
   user: AuthUser | null;
@@ -34,6 +35,7 @@ const navItems = [
 
 export function Sidebar({ user, profile }: SidebarProps) {
   const pathname = usePathname();
+  const isOnline = useNetworkStatus();
 
   const isManager = ["ops_manager", "lab_owner", "super_admin"].includes(profile?.role || "");
 
@@ -53,8 +55,16 @@ export function Sidebar({ user, profile }: SidebarProps) {
 
   return (
     <>
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 bg-[#0C0C0C] border-b border-ddt-border text-ddt-text py-2.5 px-4 text-center text-xs font-mono font-bold z-[9999] flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300">
+          <span>⚠️ Working Offline — Displaying Cached Engineering Data</span>
+        </div>
+      )}
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-[200px] bg-ddt-surface border-r border-ddt-border sticky top-0 h-screen z-40">
+      <aside className={cn(
+        "hidden md:flex flex-col w-[200px] bg-ddt-surface border-r border-ddt-border sticky h-screen z-40 transition-all duration-200",
+        isOnline ? "top-0" : "top-10 h-[calc(100vh-40px)]"
+      )}>
         <div className="p-6">
           <Link href="/dashboard" className="flex flex-col">
             <span className="font-syne text-xl font-bold text-ddt-accent leading-tight">

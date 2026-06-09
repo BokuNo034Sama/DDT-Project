@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationPanel } from "./NotificationPanel";
 import { useOfflineStore } from "@/stores/offline-store";
 import { WifiOff, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function TopBar({ title }: { title?: string }) {
   const pathname = usePathname();
@@ -38,7 +39,10 @@ export function TopBar({ title }: { title?: string }) {
   const displayTitle = topBarTitle || defaultTitle;
 
   return (
-    <header className="h-[52px] border-b border-ddt-border flex items-center justify-between px-4 md:px-6 bg-ddt-bg/80 backdrop-blur-md sticky top-0 z-30">
+    <header className={cn(
+      "h-[52px] border-b border-ddt-border flex items-center justify-between px-4 md:px-6 bg-ddt-bg/80 backdrop-blur-md sticky z-30 transition-all duration-200",
+      isOnline ? "top-0" : "top-10"
+    )}>
       <div className="flex items-center gap-4">
         <h1 className="text-md md:text-lg font-bold text-ddt-text font-syne truncate max-w-[150px] md:max-w-none">
           {displayTitle}

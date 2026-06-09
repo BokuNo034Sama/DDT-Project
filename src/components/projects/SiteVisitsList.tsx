@@ -7,6 +7,8 @@ import { SiteVisitModal } from "./SiteVisitModal";
 import { useToast } from "@/hooks/use-toast";
 import { UserPill } from "@/components/ui/UserPill";
 import { CalendarDays, Layers, Plus, Trash2, Loader2, Landmark } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -16,6 +18,7 @@ interface SiteVisitsListProps {
 
 export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const { toast } = useToast();
+  const isOnline = useNetworkStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -68,8 +71,14 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
           </h2>
           {isManager && (
             <Button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent text-xs h-8 py-1 px-3 rounded gap-1.5 transition-all duration-200"
+              onClick={() => isOnline && setIsModalOpen(true)}
+              disabled={!isOnline}
+              className={cn(
+                "border border-ddt-border text-ddt-text text-xs h-8 py-1 px-3 rounded gap-1.5 transition-all duration-200",
+                isOnline
+                  ? "bg-ddt-raised hover:bg-ddt-border hover:border-ddt-accent hover:text-ddt-accent"
+                  : "cursor-not-allowed opacity-50 bg-ddt-input"
+              )}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Visit</span>
@@ -130,8 +139,13 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
                   {isManager && (
                     <button
                       onClick={() => handleDelete(visit.id)}
-                      disabled={deletingId === visit.id}
-                      className="text-ddt-faint hover:text-red-400 p-1.5 rounded hover:bg-red-400/5 transition-all duration-150 shrink-0"
+                      disabled={deletingId === visit.id || !isOnline}
+                      className={cn(
+                        "p-1.5 rounded transition-all duration-150 shrink-0",
+                        isOnline
+                          ? "text-ddt-faint hover:text-red-400 hover:bg-red-400/5"
+                          : "text-ddt-faint opacity-55 cursor-not-allowed"
+                      )}
                       title="Delete log"
                     >
                       {deletingId === visit.id ? (
