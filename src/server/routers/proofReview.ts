@@ -82,7 +82,7 @@ export const proofReviewRouter = router({
         await supabase.from("notifications").insert({
           tenant_id: tenantId,
           user_id: reportHandlerId,
-          type: input.result === "pass" ? "proof_passed" : "proof_failed",
+          type: input.result === "pass" ? "proof_passed" : "report_error",
           title: `Proofread ${input.result.toUpperCase()}`,
           body: `The report for ${project.ndt_code} was marked as ${input.result}.${input.result === "fail" ? ` Reason: ${input.failureReason}` : ""}`,
           related_project_id: input.projectId,

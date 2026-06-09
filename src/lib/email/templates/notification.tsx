@@ -13,7 +13,7 @@ import * as React from "react";
 
 interface NotificationEmailProps {
   labName: string;
-  type: "task_assigned" | "proof_failed";
+  type: "task_assigned" | "proof_failed" | "report_error";
   title: string;
   message: string;
   actionUrl: string;
@@ -32,7 +32,7 @@ export const NotificationEmail = ({
 }: NotificationEmailProps) => {
   const previewText = `${title} - DDT Structure`;
   
-  const isError = type === "proof_failed";
+  const isError = type === "proof_failed" || type === "report_error";
   const headerColor = isError ? "#EF4444" : "#3B82F6";
 
   return (

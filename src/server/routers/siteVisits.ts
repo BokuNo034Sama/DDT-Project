@@ -79,7 +79,7 @@ export const siteVisitsRouter = router({
         return {
           tenant_id: activeTenantId,
           user_id: staffId,
-          type: "task_assigned",
+          type: "site_inspection",
           title: isLeader ? "Designated as Team Leader" : "New Site Visit Assigned",
           body: isLeader
             ? `You have been designated as the Team Leader for the site visit on ${input.visitDate} (Project ${project?.ndt_code || "Unknown"}).`

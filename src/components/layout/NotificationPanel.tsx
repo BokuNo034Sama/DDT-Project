@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
-import { Bell, CheckCheck, AlertCircle, ClipboardCheck, Layers, X } from "lucide-react";
+import { Bell, CheckCheck, AlertCircle, ClipboardCheck, Layers, X, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function getNotificationIcon(type: string) {
@@ -13,7 +13,10 @@ function getNotificationIcon(type: string) {
     case "stage_completed":
       return <ClipboardCheck className="w-4 h-4 text-emerald-400" />;
     case "proof_failed":
+    case "report_error":
       return <AlertCircle className="w-4 h-4 text-red-400" />;
+    case "site_inspection":
+      return <MapPin className="w-4 h-4 text-sky-400" />;
     default:
       return <Bell className="w-4 h-4 text-ddt-muted" />;
   }
@@ -44,26 +47,40 @@ export function NotificationPanel() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const unreadTasks = notifications?.filter((n: any) => !n.is_read && n.type === 'task_assigned') || [];
+    const unreadTasks = notifications?.filter((n: any) => !n.is_read && ['task_assigned', 'site_inspection', 'report_error'].includes(n.type)) || [];
     
     if (unreadTasks.length > prevUnreadCountRef.current) {
       if ('serviceWorker' in navigator && 'Notification' in window) {
         if (Notification.permission === 'granted') {
-          const latestTask = unreadTasks[unreadTasks.length - 1];
+          const latestNotification = unreadTasks[unreadTasks.length - 1];
           
+          // 1. Establish the UX Writer content map variables dynamically
+          let titleString = "DDT Structure Update";
+          const bodyString = latestNotification.body || "You have a new update in the workspace.";
+          let tagString = "generic-alert";
+
+          if (latestNotification.type === 'task_assigned') {
+            titleString = "⚡ New Stage Assigned";
+            tagString = "task-assignment";
+          } else if (latestNotification.type === 'site_inspection') {
+            titleString = "📍 Field Dispatch: Site Inspection";
+            tagString = "site-visit";
+          } else if (latestNotification.type === 'report_error') {
+            titleString = "⚠️ Review Required: Report Fault";
+            tagString = "report-correction";
+          }
+
+          // 2. Dispatch the service worker payload to trigger default phone sounds and banners
           navigator.serviceWorker.ready.then((registration) => {
-            registration.showNotification("DDT Structure: New Assignment", {
-              body: latestTask.body || "You have been assigned a new task stage.",
+            registration.showNotification(titleString, {
+              body: bodyString,
               icon: "/icons/icon-192x192.png",
               badge: "/icons/icon-192x192.png",
-              
-              // EXPLICIT MOBILE NATIVE SOUND & BANNER SETTINGS:
-              silent: false,                // Force the phone to play its default notification tone
-              renotify: true,               // Force the phone to sound/vibrate even if a previous alert is visible
-              tag: "task-assignment-alert", // Groups alerts and prevents layout spamming
-              requireInteraction: true,     // Keeps the notification bar visible on screen until tapped
-              
-              vibrate: [200, 100, 200],     // Triggers standard haptic vibration pulses on Android
+              silent: false,                 // Disables silent tracking, triggering native default phone ringtone
+              renotify: true,                // Forces system chime to fire even if old banners exist
+              tag: tagString,                // Segregates alerts to prevent device grouping suppression
+              requireInteraction: true,      // Keeps the alert banner pinned to the mobile screen until addressed
+              vibrate: [200, 100, 200]       // Triggers a sharp haptic vibration sequence on Android
             } as any);
           });
         }

@@ -44,7 +44,7 @@ export async function sendNotification({
   }
 
   // 2. Optionally send email if requested and type matches
-  if (sendEmailAlert && (type === "task_assigned" || type === "proof_failed")) {
+  if (sendEmailAlert && (type === "task_assigned" || type === "proof_failed" || type === "report_error")) {
     // Get user email
     const { data: user } = (await supabase.from("users").select("email").eq("id", userId).single()) as any;
     const { data: tenant } = (await supabase.from("tenants").select("name").eq("id", tenantId).single()) as any;
@@ -58,7 +58,7 @@ export async function sendNotification({
           title,
           message,
           actionUrl: link ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${link}` : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard`,
-          actionText: type === "task_assigned" ? "View Task" : "View Details",
+          actionText: (type === "task_assigned" || type === "report_error") ? "View Task" : "View Details",
         }),
       });
     }

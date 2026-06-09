@@ -418,7 +418,9 @@ export interface Database {
         | "stage_completed"
         | "proof_failed"
         | "proof_passed"
-        | "report_delivered";
+        | "report_delivered"
+        | "site_inspection"
+        | "report_error";
     };
   };
 }
