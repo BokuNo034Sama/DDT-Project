@@ -66,10 +66,19 @@ export function NotificationPanel() {
 
   async function handleForceSubscriptionHandshake() {
     try {
-      console.log("Initializing diagnostic handshake...");
+      console.log("Initializing explicit diagnostic handshake...");
+      
+      // 1. Resolve key with a hard backup to bypass Next.js bundling issues
+      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
+      
+      if (!publicVapidKey) {
+        alert("❌ Client Configuration Error: VAPID Public Key is completely missing.");
+        return;
+      }
+
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        alert("Permission denied. Reset notification settings in your mobile browser browser bar.");
+        alert("❌ Permission Denied: Please reset your browser's notification permissions for this site.");
         return;
       }
 
@@ -77,26 +86,31 @@ export function NotificationPanel() {
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
-        console.log("Generating fresh device token endpoints...");
+        console.log("Requesting fresh device tokens from hardware vendor...");
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as any
+          applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
         });
       }
       
       const subscriptionJSON = subscription.toJSON();
       
-      // Trigger the tRPC route write to commit to user_push_subscriptions
+      if (!subscriptionJSON.endpoint) {
+        alert("❌ Hardware Error: Browser generated an invalid subscription payload.");
+        return;
+      }
+      
+      // 2. Submit values cleanly to the tRPC database procedure
       await utils.notifications.savePushSubscription.mutate({
-        endpoint: subscriptionJSON.endpoint!,
-        auth_key: subscriptionJSON.keys!.auth!,
-        p256dh_key: subscriptionJSON.keys!.p256dh!
+        endpoint: subscriptionJSON.endpoint,
+        auth_key: subscriptionJSON.keys?.auth || "",
+        p256dh_key: subscriptionJSON.keys?.p256dh || ""
       });
 
-      alert("🏆 Success! Hardware token committed to Supabase. Refresh your Android settings screen.");
+      alert("🏆 SUCCESS! Hardware registration data written to Supabase!");
     } catch (err: any) {
-      alert(`❌ Handshake Blocked: ${err.message || err}`);
-      console.error(err);
+      alert(`❌ Handshake Interrupted: ${err.message || err}`);
+      console.error("Handshake execution crashed:", err);
     }
   }
 
