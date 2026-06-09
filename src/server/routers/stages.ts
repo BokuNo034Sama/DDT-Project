@@ -17,7 +17,7 @@ export const stagesRouter = router({
 
     const activeTenantId = profile.data?.tenant_id || ctx.tenantId;
 
-    const { data, error } = await adminClient
+    const { data: assignments, error: assignmentsError } = await adminClient
       .from("project_stage_assignments")
       .select(`
         *,
@@ -40,11 +40,67 @@ export const stagesRouter = router({
       .in("status", ["pending", "in_progress"])
       .order("assigned_at", { ascending: false });
 
-    if (error) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    if (assignmentsError) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: assignmentsError.message });
     }
 
-    return data;
+    // Pull active site visits where current user is scheduled
+    const { data: visits, error: visitsError } = await adminClient
+      .from("site_visits")
+      .select(`
+        id,
+        project_id,
+        visit_date,
+        status,
+        is_team_leader,
+        started_at,
+        completed_at,
+        project:projects (
+          id,
+          ndt_code,
+          client_name,
+          status,
+          address,
+          site_date
+        )
+      `)
+      .eq("staff_id", ctx.userId)
+      .eq("tenant_id", activeTenantId)
+      .in("status", ["pending", "in_progress"])
+      .order("visit_date", { ascending: false });
+
+    if (visitsError) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: visitsError.message });
+    }
+
+    // Format visits to align with the task card component
+    const formattedVisits = (visits || []).map((v: any) => ({
+      id: v.id,
+      project_id: v.project_id,
+      stage: "site_visit" as const,
+      status: v.status,
+      assigned_at: v.visit_date,
+      visit_date: v.visit_date,
+      is_team_leader: v.is_team_leader,
+      started_at: v.started_at,
+      completed_at: v.completed_at,
+      project: v.project,
+      task_type: "site_visit" as const,
+      assigned_by_user: null,
+    }));
+
+    const formattedStages = (assignments || []).map((s: any) => ({
+      ...s,
+      task_type: "stage" as const,
+      is_team_leader: false,
+    }));
+
+    // Merge and sort chronologically (newest first)
+    const combined = [...formattedVisits, ...formattedStages].sort(
+      (a, b) => new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
+    );
+
+    return combined;
   }),
 
   // Assign a stage to a staff member

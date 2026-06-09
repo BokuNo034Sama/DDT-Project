@@ -16,6 +16,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { trpc } from "@/lib/trpc/client";
 import { Loader2, CalendarRange, CheckSquare, Square } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -35,12 +42,22 @@ export function SiteVisitModal({
   const { toast } = useToast();
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split("T")[0]);
+  const [leaderStaffId, setLeaderStaffId] = useState<string | null>(null);
 
   const { register, getValues, reset } = useForm<{ floors: number | "" }>({
     defaultValues: {
       floors: project?.number_of_floors ?? "",
     },
   });
+
+  // Sync leader selection when selectedStaffIds changes
+  useEffect(() => {
+    if (selectedStaffIds.length === 0) {
+      setLeaderStaffId(null);
+    } else if (!leaderStaffId || !selectedStaffIds.includes(leaderStaffId)) {
+      setLeaderStaffId(selectedStaffIds[0]);
+    }
+  }, [selectedStaffIds, leaderStaffId]);
 
   // Sync state whenever the modal opens
   useEffect(() => {
@@ -79,6 +96,7 @@ export function SiteVisitModal({
       onOpenChange(false);
       // Reset form states
       setSelectedStaffIds([]);
+      setLeaderStaffId(null);
       setVisitDate(new Date().toISOString().split("T")[0]);
       reset({
         floors: project?.number_of_floors ?? "",
@@ -136,6 +154,7 @@ export function SiteVisitModal({
       staffIds: selectedStaffIds,
       visitDate,
       numberOfFloors: floorsValue === "" || floorsValue === undefined ? undefined : Number(floorsValue),
+      leaderStaffId: leaderStaffId ?? undefined,
     });
   };
 
@@ -185,6 +204,33 @@ export function SiteVisitModal({
               className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
             />
           </div>
+
+          {/* Designate Team Leader */}
+          {selectedStaffIds.length > 0 && (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <Label className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">
+                Designate Team Leader *
+              </Label>
+              <Select
+                value={leaderStaffId || ""}
+                onValueChange={(val) => setLeaderStaffId(val)}
+              >
+                <SelectTrigger className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm">
+                  <SelectValue placeholder="Select team leader" />
+                </SelectTrigger>
+                <SelectContent className="bg-ddt-surface border-ddt-border text-ddt-text">
+                  {selectedStaffIds.map((id) => {
+                    const member = staffList?.find((s: any) => s.id === id);
+                    return (
+                      <SelectItem key={id} value={id}>
+                        {member?.full_name || "Unknown Staff"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Staff Checkbox List */}
           <div className="space-y-2">
