@@ -90,6 +90,42 @@ export const notificationsRouter = router({
       return data;
     }),
 
+  savePushSubscription: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url(),
+        auth_key: z.string(),
+        p256dh_key: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, tenantId, userId } = ctx;
+
+      const { data, error } = await supabase
+        .from("user_push_subscriptions")
+        .upsert(
+          {
+            user_id: userId,
+            tenant_id: tenantId,
+            endpoint: input.endpoint,
+            p256dh_key: input.p256dh_key,
+            auth_key: input.auth_key,
+            created_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "endpoint",
+          }
+        )
+        .select()
+        .single();
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return data;
+    }),
+
   removeSubscription: protectedProcedure
     .input(
       z.object({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
 import { Bell, CheckCheck, AlertCircle, ClipboardCheck, Layers, X, MapPin } from "lucide-react";
@@ -33,10 +33,72 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const utils = trpc.useUtils();
+  
+  const trpcUtils = trpc.useUtils();
+  const savePushSubscriptionMutation = trpc.notifications.savePushSubscription.useMutation();
+  const utils = useMemo(() => ({
+    ...trpcUtils,
+    notifications: {
+      ...trpcUtils.notifications,
+      savePushSubscription: {
+        mutate: (args: any) => savePushSubscriptionMutation.mutateAsync(args),
+      },
+    },
+  } as any), [trpcUtils, savePushSubscriptionMutation]);
+
+  async function handleForceSubscriptionHandshake() {
+    try {
+      console.log("Initializing diagnostic handshake...");
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert("Permission denied. Reset notification settings in your mobile browser browser bar.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        console.log("Generating fresh device token endpoints...");
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as any
+        });
+      }
+      
+      const subscriptionJSON = subscription.toJSON();
+      
+      // Trigger the tRPC route write to commit to user_push_subscriptions
+      await utils.notifications.savePushSubscription.mutate({
+        endpoint: subscriptionJSON.endpoint!,
+        auth_key: subscriptionJSON.keys!.auth!,
+        p256dh_key: subscriptionJSON.keys!.p256dh!
+      });
+
+      alert("🏆 Success! Hardware token committed to Supabase. Refresh your Android settings screen.");
+    } catch (err: any) {
+      alert(`❌ Handshake Blocked: ${err.message || err}`);
+      console.error(err);
+    }
+  }
 
   const { data: notifications, isLoading } = trpc.notifications.list.useQuery();
   const markReadMutation = trpc.notifications.markRead.useMutation({
@@ -80,6 +142,12 @@ export function NotificationPanel() {
 
   return (
     <div ref={panelRef} className="relative">
+      <button 
+        onClick={handleForceSubscriptionHandshake}
+        className="w-full p-4 mb-4 bg-[#141C2E] border-2 border-[#A3E635] rounded-xl text-white font-bold text-sm text-center shadow-lg cursor-pointer"
+      >
+        ⚡ SYSTEM TEST: Force Mobile Push Handshake
+      </button>
       {/* Bell Button */}
       <button
         id="notification-bell-btn"
