@@ -378,6 +378,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      user_push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          tenant_id: string;
+          endpoint: string;
+          auth_key: string;
+          p256dh_key: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tenant_id: string;
+          endpoint: string;
+          auth_key: string;
+          p256dh_key: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tenant_id?: string;
+          endpoint?: string;
+          auth_key?: string;
+          p256dh_key?: string;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

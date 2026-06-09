@@ -51,4 +51,64 @@ export const notificationsRouter = router({
 
       return { success: true };
     }),
+
+  saveSubscription: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url(),
+        keys: z.object({
+          p256dh: z.string(),
+          auth: z.string(),
+        }),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, tenantId, userId } = ctx;
+
+      const { data, error } = await supabase
+        .from("user_push_subscriptions")
+        .upsert(
+          {
+            user_id: userId,
+            tenant_id: tenantId,
+            endpoint: input.endpoint,
+            p256dh_key: input.keys.p256dh,
+            auth_key: input.keys.auth,
+            created_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "endpoint",
+          }
+        )
+        .select()
+        .single();
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return data;
+    }),
+
+  removeSubscription: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, userId } = ctx;
+
+      const { error } = await supabase
+        .from("user_push_subscriptions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("endpoint", input.endpoint);
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return { success: true };
+    }),
 });

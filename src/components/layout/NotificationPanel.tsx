@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
 import { Bell, CheckCheck, AlertCircle, ClipboardCheck, Layers, X, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWebPush } from "@/hooks/useWebPush";
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -42,63 +43,7 @@ export function NotificationPanel() {
     onSuccess: () => utils.notifications.list.invalidate(),
   });
 
-  const prevUnreadCountRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (!('serviceWorker' in navigator)) {
-      console.log("DIAGNOSTIC: Service workers are completely disabled on this connection. Ensure you are running on HTTPS.");
-    }
-    if (!('Notification' in window)) {
-      console.log("DIAGNOSTIC: Native Notification API is missing or blocked by this mobile browser engine.");
-    }
-
-    const unreadTasks = notifications?.filter((n: any) => !n.is_read && ['task_assigned', 'site_inspection', 'report_error'].includes(n.type)) || [];
-    
-    if (unreadTasks.length > prevUnreadCountRef.current) {
-      if ('serviceWorker' in navigator && 'Notification' in window) {
-        if (Notification.permission === 'granted') {
-          const latestNotification = unreadTasks[unreadTasks.length - 1];
-          
-          // 1. Establish the UX Writer content map variables dynamically
-          let titleString = "DDT Structure Update";
-          const bodyString = latestNotification.body || "You have a new update in the workspace.";
-          let tagString = "generic-alert";
-
-          if (latestNotification.type === 'task_assigned') {
-            titleString = "⚡ New Stage Assigned";
-            tagString = "task-assignment";
-          } else if (latestNotification.type === 'site_inspection') {
-            titleString = "📍 Field Dispatch: Site Inspection";
-            tagString = "site-visit";
-          } else if (latestNotification.type === 'report_error') {
-            titleString = "⚠️ Review Required: Report Fault";
-            tagString = "report-correction";
-          }
-
-          // 2. Dispatch the service worker payload to trigger default phone sounds and banners
-          navigator.serviceWorker.ready.then((registration) => {
-            registration.showNotification(titleString, {
-              body: bodyString,
-              icon: "/icons/icon-192x192.png",
-              badge: "/icons/icon-192x192.png",
-              silent: false,                 // Disables silent tracking, triggering native default phone ringtone
-              renotify: true,                // Forces system chime to fire even if old banners exist
-              tag: tagString,                // Segregates alerts to prevent device grouping suppression
-              requireInteraction: true,      // Keeps the alert banner pinned to the mobile screen until addressed
-              vibrate: [200, 100, 200]       // Triggers a sharp haptic vibration sequence on Android
-            } as any).catch(err => {
-              console.error("Mobile OS rejected showNotification execution:", err);
-            });
-          });
-        }
-      }
-    }
-    
-    // Update the reference pointer state
-    prevUnreadCountRef.current = unreadTasks.length;
-  }, [notifications]);
+  const { isSupported, isSubscribed, subscribeUser, unsubscribeUser, loading: pushLoading } = useWebPush();
 
   const supabase = createClient();
 
@@ -171,7 +116,22 @@ export function NotificationPanel() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              {isSupported && (
+                <button
+                  onClick={isSubscribed ? unsubscribeUser : subscribeUser}
+                  disabled={pushLoading}
+                  className={cn(
+                    "text-[10px] font-bold flex items-center gap-1 px-2 py-0.5 rounded transition-all border",
+                    isSubscribed
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                      : "bg-ddt-accent/10 text-ddt-accent border-ddt-accent/20 hover:bg-ddt-accent/20"
+                  )}
+                  title={isSubscribed ? "Disable push notifications" : "Enable push notifications"}
+                >
+                  {isSubscribed ? "Push On" : "Push Off"}
+                </button>
+              )}
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
