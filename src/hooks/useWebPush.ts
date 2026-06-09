@@ -72,16 +72,25 @@ export function useWebPush() {
       setLoading(true);
       setError(null);
 
-      // Request Notification permission
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        throw new Error("Notification permission denied by user.");
+      // Request/Verify Notification permission
+      let permission = Notification.permission;
+      console.log('Push permission:', permission);
+      if (permission === 'denied') {
+        alert("Enable notifications in browser settings");
+        throw new Error("Push permission is denied in browser settings.");
+      } else if (permission === 'default') {
+        permission = await Notification.requestPermission();
+        console.log('Push permission after request:', permission);
+        if (permission !== 'granted') {
+          throw new Error("Notification permission denied by user.");
+        }
       }
 
       const registration = await navigator.serviceWorker.ready;
+      console.log('SW ready:', registration);
       
       // Get the VAPID key
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BLrMnX_JxffaeQ5UVIEFzjctZuKzV48dSzH_Z1HoEMeNGVAs20wqfs6kG-U7C9i4ker9MFabCMvGiwMHZqFj3n4";
       if (!vapidPublicKey) {
         throw new Error("VAPID public key is missing in environmental variables.");
       }
@@ -104,13 +113,20 @@ export function useWebPush() {
       }
 
       // Sync with database
-      await saveSubscriptionMutation.mutateAsync({
-        endpoint: subscription.endpoint,
-        keys: {
-          p256dh,
-          auth,
-        },
-      });
+      console.log('Saving subscription:', subscription);
+      try {
+        await saveSubscriptionMutation.mutateAsync({
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh,
+            auth,
+          },
+        });
+        console.log('Subscription saved successfully');
+      } catch (err) {
+        console.error('Save subscription error:', err);
+        throw err;
+      }
 
       setIsSubscribed(true);
     } catch (err: any) {

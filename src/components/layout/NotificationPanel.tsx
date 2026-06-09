@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { createClient } from "@/lib/supabase/client";
 import { Bell, CheckCheck, AlertCircle, ClipboardCheck, Layers, X, MapPin } from "lucide-react";
@@ -33,86 +33,12 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
 
 export function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   
-  const trpcUtils = trpc.useUtils();
-  const savePushSubscriptionMutation = trpc.notifications.savePushSubscription.useMutation();
-  const utils = useMemo(() => ({
-    ...trpcUtils,
-    notifications: {
-      ...trpcUtils.notifications,
-      savePushSubscription: {
-        mutate: (args: any) => savePushSubscriptionMutation.mutateAsync(args),
-      },
-    },
-  } as any), [trpcUtils, savePushSubscriptionMutation]);
-
-  async function handleForceSubscriptionHandshake() {
-    try {
-      console.log("Initializing explicit diagnostic handshake...");
-      
-      // 1. Resolve key with a hard backup to bypass Next.js bundling issues
-      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
-      
-      if (!publicVapidKey) {
-        alert("❌ Client Configuration Error: VAPID Public Key is completely missing.");
-        return;
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert("❌ Permission Denied: Please reset your browser's notification permissions for this site.");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
-      
-      if (!subscription) {
-        console.log("Requesting fresh device tokens from hardware vendor...");
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
-        });
-      }
-      
-      const subscriptionJSON = subscription.toJSON();
-      
-      if (!subscriptionJSON.endpoint) {
-        alert("❌ Hardware Error: Browser generated an invalid subscription payload.");
-        return;
-      }
-      
-      // 2. Submit values cleanly to the tRPC database procedure
-      await utils.notifications.savePushSubscription.mutate({
-        endpoint: subscriptionJSON.endpoint,
-        auth_key: subscriptionJSON.keys?.auth || "",
-        p256dh_key: subscriptionJSON.keys?.p256dh || ""
-      });
-
-      alert("🏆 SUCCESS! Hardware registration data written to Supabase!");
-    } catch (err: any) {
-      alert(`❌ Handshake Interrupted: ${err.message || err}`);
-      console.error("Handshake execution crashed:", err);
-    }
-  }
+  const utils = trpc.useUtils();
 
   const { data: notifications, isLoading } = trpc.notifications.list.useQuery();
   const markReadMutation = trpc.notifications.markRead.useMutation({
@@ -156,12 +82,6 @@ export function NotificationPanel() {
 
   return (
     <div ref={panelRef} className="relative">
-      <button 
-        onClick={handleForceSubscriptionHandshake}
-        className="w-full p-4 mb-4 bg-[#141C2E] border-2 border-[#A3E635] rounded-xl text-white font-bold text-sm text-center shadow-lg cursor-pointer"
-      >
-        ⚡ SYSTEM TEST: Force Mobile Push Handshake
-      </button>
       {/* Bell Button */}
       <button
         id="notification-bell-btn"
@@ -199,21 +119,6 @@ export function NotificationPanel() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {isSupported && (
-                <button
-                  onClick={isSubscribed ? unsubscribeUser : subscribeUser}
-                  disabled={pushLoading}
-                  className={cn(
-                    "text-[10px] font-bold flex items-center gap-1 px-2 py-0.5 rounded transition-all border",
-                    isSubscribed
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                      : "bg-ddt-accent/10 text-ddt-accent border-ddt-accent/20 hover:bg-ddt-accent/20"
-                  )}
-                  title={isSubscribed ? "Disable push notifications" : "Enable push notifications"}
-                >
-                  {isSubscribed ? "Push On" : "Push Off"}
-                </button>
-              )}
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
@@ -233,6 +138,41 @@ export function NotificationPanel() {
               </button>
             </div>
           </div>
+
+          {/* Web Push Settings Toggle */}
+          {isSupported && (
+            <div className="px-4 py-3 bg-ddt-surface border-b border-ddt-border flex items-center justify-between gap-4 select-none">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-ddt-text font-syne uppercase tracking-wider">
+                  Push Notifications
+                </span>
+                <span className="text-[10px] text-ddt-muted mt-0.5 font-medium">
+                  {isSubscribed ? "Enabled on this device" : "Receive real-time alerts"}
+                </span>
+              </div>
+              <button
+                id="push-notification-toggle"
+                onClick={isSubscribed ? unsubscribeUser : subscribeUser}
+                disabled={pushLoading}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-ddt-accent disabled:opacity-50",
+                  isSubscribed ? "bg-ddt-accent" : "bg-ddt-border"
+                )}
+                title={isSubscribed ? "Disable push notifications" : "Enable push notifications"}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center",
+                    isSubscribed ? "translate-x-4" : "translate-x-0"
+                  )}
+                >
+                  {pushLoading && (
+                    <span className="w-2 h-2 border-t-2 border-ddt-accent rounded-full animate-spin" />
+                  )}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Notification List */}
           <div className="overflow-y-auto max-h-[340px] divide-y divide-ddt-border/30">
