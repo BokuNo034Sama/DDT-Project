@@ -86,53 +86,63 @@ export function useWebPush() {
     };
 
     try {
-      // Force set your loading state to true (which triggers "Enabling...")
-      setIsEnabling(true); 
-
-      alert("Diagnostic: Registering service worker under current host...");
+      setIsEnabling(true);
+      alert("Step 1: Requesting system permission...");
       
-      // 1. Force register explicitly with the current origin to bypass domain configuration blocks
-      const registration = await Promise.race([
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }),
-        timeoutPromise(5000)
-      ]) as ServiceWorkerRegistration;
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert("❌ Permission denied by user.");
+        setIsEnabling(false);
+        return;
+      }
 
-      alert("Diagnostic: Waiting for worker readiness context...");
-      // Ensure the worker is completely activated
-      await Promise.race([
-        navigator.serviceWorker.ready,
-        timeoutPromise(5000)
-      ]);
+      alert("Step 2: Scanning for active service worker...");
+      // Bypasses the .ready deadlock by pulling what's currently in memory
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      
+      if (!registrations || registrations.length === 0) {
+        alert("❌ Critical: No Service Worker found running in this browser cache. Running clean registration backup...");
+        // Force register on the spot
+        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        alert("🔄 Worker registered. Please refresh your browser tab and try once more.");
+        setIsEnabling(false);
+        return;
+      }
 
-      alert("Diagnostic: Accessing Push Manager...");
+      // Grab the primary active service worker registration instance
+      const registration = registrations[0];
+      alert(`Step 3: Worker verified! Active scope: ${registration.scope}`);
+
+      if (!registration.pushManager) {
+        alert("❌ Critical Error: Your mobile browser engine supports service workers but native Push Management is completely unavailable or restricted.");
+        setIsEnabling(false);
+        return;
+      }
+
+      alert("Step 4: Requesting cryptographic hardware keys...");
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
-
-      // 2. Request the native hardware token
-      const subscription = await Promise.race([
-        registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
-        }),
-        timeoutPromise(5000)
-      ]) as any;
-
-      alert("Diagnostic: Hardware key captured! Syncing with Supabase table...");
-      const subscriptionJSON = subscription.toJSON();
-
-      // 3. Fire backend tRPC mutation save
-      await utils.notifications.saveSubscription.mutate({
-        endpoint: subscriptionJSON.endpoint,
-        auth_key: subscriptionJSON.keys?.auth || "",
-        p256dh_key: subscriptionJSON.keys?.p256dh || ""
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
       });
 
-      alert("🏆 SUCCESS: Hardware token registered successfully!");
-      setIsEnabled(true); // Update UI to "Push On"
-    } catch (error: any) {
-      alert(`❌ Handshake Blocked: ${error.message || error}`);
-      console.error("Handshake execution crashed:", error);
+      alert("Step 5: Handshake successful! Syncing data arrays to Supabase...");
+      const subscriptionJSON = subscription.toJSON();
+
+      await utils.notifications.saveSubscription.mutate({
+        endpoint: subscriptionJSON.endpoint!,
+        auth_key: subscriptionJSON.keys!.auth!,
+        p256dh_key: subscriptionJSON.keys!.p256dh!
+      });
+
+      alert("🏆 SUCCESS: Hardware endpoint saved to database!");
+      setIsEnabled(true);
+    } catch (err: any) {
+      alert(`❌ HANDSHAKE BLOCKED: ${err.name || "Error"} -> ${err.message || err}`);
+      console.error("Web Push handshake execution crash:", err);
     } finally {
-      setIsEnabling(false); // CRITICAL: Always kill the infinite spinner
+      setIsEnabling(false); // Safeguard: Always kill the loading spinner
     }
   }, [savePushSubscriptionMutation]);
 
