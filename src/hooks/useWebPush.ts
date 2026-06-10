@@ -111,37 +111,31 @@ export function useWebPush() {
         return;
       }
 
-      alert("Step 1: Fetching current worker instance...");
-      let registration = await navigator.serviceWorker.getRegistration('/');
-
-      if (!registration) {
-        alert("Step 2: Registering fresh worker mapping...");
-        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      }
-
-      // 🔍 CRITICAL CHECKPOINT: Explicitly poll or wait until the worker is active in memory
-      alert("Step 2.5: Verifying worker activation readiness...");
+      alert("Step 1: Inspecting physical service worker registration footprint...");
       
-      // If the worker is still installing or waiting, wait for it to take over active status
-      if (!registration.active) {
-        const activeWorker = registration.installing || registration.waiting;
-        if (activeWorker) {
-          await new Promise<void>((resolve) => {
-            activeWorker.addEventListener('statechange', (e: any) => {
-              if (e.target.state === 'activated' || registration.active) {
-                resolve();
-              }
-            });
-            // Safety timeout: don't let it hang forever if already activating
-            setTimeout(() => resolve(), 2000);
-          });
-        }
+      // 1. Force register explicitly at the root and wait for the browser handle to return
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      
+      alert("Step 2: Checking system controller synchronization...");
+      
+      // 2. If the page doesn't have an active controller assigned yet, force a page claim routine
+      if (!navigator.serviceWorker.controller) {
+        alert("Step 2.2: Page is uncontrolled. Forcing sync wait handler...");
+        await new Promise<void>((resolve) => {
+          const checkReady = () => {
+            if (registration.active) {
+              resolve();
+            } else {
+              setTimeout(checkReady, 200);
+            }
+          };
+          checkReady();
+        });
       }
 
-      // Double-check fallback: Give the browser an extra operational tick to promote the worker to active
-      if (!registration.active) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      alert("Step 2.5: Forcing extra hardware thread cool-down...");
+      // Give mobile browser engines an extra structural delay to bind low-level system communication channels
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       if (!registration || !registration.pushManager) {
         alert("❌ Critical Error: Push Management is unavailable on this browser instance.");
@@ -154,28 +148,22 @@ export function useWebPush() {
       
       let subscription: any = null;
       let retries = 3;
-      let delay = 1000; // 1 second operational cooldown
+      let delay = 1500;
 
       while (retries > 0) {
         try {
+          // Target the active instance directly to bypass browser execution delays
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
           });
-          // If successful, break cleanly out of the retry container
           break; 
         } catch (subscribeError: any) {
           retries--;
-          console.warn(`Hardware activation latency detected. Retries remaining: ${retries}. Retrying in ${delay}ms...`);
-          
-          if (retries === 0) {
-            // No retries left, throw the original error down to the main catch block
-            throw subscribeError; 
-          }
-          
-          // Asynchronously sleep to give the browser engine time to stabilize its push network bindings
+          alert(`⚠️ Retrying push connection... Attempts left: ${retries}`);
+          if (retries === 0) throw subscribeError;
           await new Promise((resolve) => setTimeout(resolve, delay));
-          delay += 500; // Step up the delay linearly for the next pass
+          delay += 1000;
         }
       }
 
@@ -188,7 +176,7 @@ export function useWebPush() {
         p256dh_key: subscriptionJSON.keys!.p256dh!
       });
 
-      alert("🏆 SUCCESS: Secure hardware link created in database!");
+      alert("🏆 SUCCESS: Your phone is securely mapped to the system!");
       setIsEnabled(true);
     } catch (err: any) {
       alert(`❌ Handshake Interrupted: ${err.message || err}`);
