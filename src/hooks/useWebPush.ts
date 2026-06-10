@@ -149,13 +149,35 @@ export function useWebPush() {
         return;
       }
 
-      alert("Step 3: Synchronizing hardware push channels...");
+      alert("Step 3: Synchronizing hardware push channels (with latency fallback)...");
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
       
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
-      });
+      let subscription: any = null;
+      let retries = 3;
+      let delay = 1000; // 1 second operational cooldown
+
+      while (retries > 0) {
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
+          });
+          // If successful, break cleanly out of the retry container
+          break; 
+        } catch (subscribeError: any) {
+          retries--;
+          console.warn(`Hardware activation latency detected. Retries remaining: ${retries}. Retrying in ${delay}ms...`);
+          
+          if (retries === 0) {
+            // No retries left, throw the original error down to the main catch block
+            throw subscribeError; 
+          }
+          
+          // Asynchronously sleep to give the browser engine time to stabilize its push network bindings
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay += 500; // Step up the delay linearly for the next pass
+        }
+      }
 
       alert("Step 4: Shipping hardware tokens to Supabase...");
       const subscriptionJSON = subscription.toJSON();
