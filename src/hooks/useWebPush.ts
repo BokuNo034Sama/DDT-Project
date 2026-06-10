@@ -16,6 +16,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+const timeoutPromise = (ms: number) => new Promise((_, reject) => 
+  setTimeout(() => reject(new Error("Device handshake timed out. Check domain scope or clear browser site cache.")), ms)
+);
+
 export function useWebPush() {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -23,6 +27,7 @@ export function useWebPush() {
   const [error, setError] = useState<string | null>(null);
 
   const saveSubscriptionMutation = trpc.notifications.saveSubscription.useMutation();
+  const savePushSubscriptionMutation = trpc.notifications.savePushSubscription.useMutation();
   const removeSubscriptionMutation = trpc.notifications.removeSubscription.useMutation();
 
   // Retrieve current active subscription
@@ -63,75 +68,73 @@ export function useWebPush() {
 
   // Subscribe user
   const subscribeUser = useCallback(async () => {
+    const setIsEnabling = setLoading;
+    const setIsEnabled = setIsSubscribed;
+    
+    const utils = {
+      notifications: {
+        saveSubscription: {
+          mutate: async (input: { endpoint: string; auth_key: string; p256dh_key: string }) => {
+            return savePushSubscriptionMutation.mutateAsync({
+              endpoint: input.endpoint,
+              auth_key: input.auth_key,
+              p256dh_key: input.p256dh_key,
+            });
+          }
+        }
+      }
+    };
+
     try {
-      setLoading(true);
-      console.log('Step 1: Checking SW support...');
+      // Force set your loading state to true (which triggers "Enabling...")
+      setIsEnabling(true); 
+
+      alert("Diagnostic: Registering service worker under current host...");
       
-      if (!('serviceWorker' in navigator)) {
-        console.error('Service Worker not supported');
-        return;
-      }
-      
-      if (!('PushManager' in window)) {
-        console.error('Push API not supported');
-        return;
-      }
-      
-      console.log('Step 2: Getting SW registration...');
-      const registration = await navigator.serviceWorker.ready;
-      console.log('SW registration:', registration);
-      
-      console.log('Step 3: Checking permission...');
-      const permission = await Notification.requestPermission();
-      console.log('Permission result:', permission);
-      
-      if (permission !== 'granted') {
-        console.error('Permission denied:', permission);
-        return;
-      }
-      
-      console.log('Step 4: Getting VAPID key...');
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BLrMnX_JxffaeQ5UVIEFzjctZuKzV48dSzH_Z1HoEMeNGVAs20wqfs6kG-U7C9i4ker9MFabCMvGiwMHZqFj3n4";
-      console.log('VAPID key exists:', !!vapidKey);
-      console.log('VAPID key length:', vapidKey?.length);
-      
-      if (!vapidKey) {
-        console.error('VAPID public key is missing!');
-        return;
-      }
-      
-      console.log('Step 5: Converting VAPID key...');
-      const applicationServerKey = urlBase64ToUint8Array(vapidKey);
-      console.log('Key converted:', applicationServerKey.length, 'bytes');
-      
-      console.log('Step 6: Subscribing to push...');
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as any
-      });
-      console.log('Subscription created:', subscription.endpoint);
-      
-      console.log('Step 7: Saving to database...');
+      // 1. Force register explicitly with the current origin to bypass domain configuration blocks
+      const registration = await Promise.race([
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }),
+        timeoutPromise(5000)
+      ]) as ServiceWorkerRegistration;
+
+      alert("Diagnostic: Waiting for worker readiness context...");
+      // Ensure the worker is completely activated
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        timeoutPromise(5000)
+      ]);
+
+      alert("Diagnostic: Accessing Push Manager...");
+      const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
+
+      // 2. Request the native hardware token
+      const subscription = await Promise.race([
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
+        }),
+        timeoutPromise(5000)
+      ]) as any;
+
+      alert("Diagnostic: Hardware key captured! Syncing with Supabase table...");
       const subscriptionJSON = subscription.toJSON();
-      console.log('Subscription JSON:', subscriptionJSON);
-      
-      await saveSubscriptionMutation.mutateAsync({
-        endpoint: subscriptionJSON.endpoint!,
-        auth: subscriptionJSON.keys!.auth!,
-        p256dh: subscriptionJSON.keys!.p256dh!,
+
+      // 3. Fire backend tRPC mutation save
+      await utils.notifications.saveSubscription.mutate({
+        endpoint: subscriptionJSON.endpoint,
+        auth_key: subscriptionJSON.keys?.auth || "",
+        p256dh_key: subscriptionJSON.keys?.p256dh || ""
       });
-      
-      console.log('Step 8: Saved successfully!');
-      setIsSubscribed(true);
-      
+
+      alert("🏆 SUCCESS: Hardware token registered successfully!");
+      setIsEnabled(true); // Update UI to "Push On"
     } catch (error: any) {
-      console.error('Push subscription failed:', error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
+      alert(`❌ Handshake Blocked: ${error.message || error}`);
+      console.error("Handshake execution crashed:", error);
     } finally {
-      setLoading(false);
+      setIsEnabling(false); // CRITICAL: Always kill the infinite spinner
     }
-  }, [saveSubscriptionMutation]);
+  }, [savePushSubscriptionMutation]);
 
   // Unsubscribe user
   const unsubscribeUser = useCallback(async () => {

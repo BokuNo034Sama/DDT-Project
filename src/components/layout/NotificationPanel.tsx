@@ -33,21 +33,6 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 export function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -62,66 +47,6 @@ export function NotificationPanel() {
   const { isSupported, isSubscribed, subscribeUser, unsubscribeUser, loading: pushLoading } = useWebPush();
 
   const supabase = createClient();
-
-  const savePushSubscriptionMutation = trpc.notifications.savePushSubscription.useMutation();
-
-  async function debugMobileHandshake() {
-    const localUtils = {
-      notifications: {
-        saveSubscription: {
-          mutate: async (input: { endpoint: string; auth_key: string; p256dh_key: string }) => {
-            return savePushSubscriptionMutation.mutateAsync({
-              endpoint: input.endpoint,
-              auth_key: input.auth_key,
-              p256dh_key: input.p256dh_key,
-            });
-          }
-        }
-      }
-    };
-
-    const utils = localUtils;
-
-    try {
-      // Hardcoded key bypass to isolate Next.js environment stripping issues
-      const hardcodedPublicKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
-      
-      alert("Diagnostic Step 1: Checking Service Worker State...");
-      if (!('serviceWorker' in navigator)) {
-        alert("❌ Critical: Service Workers are completely disabled or unsupported on this browser engine/protocol.");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      alert(`Diagnostic Step 2: Worker found active with scope: ${registration.scope}`);
-
-      if (!registration.pushManager) {
-        alert("❌ Critical: Browser engine supports Service Workers but Native Push Management is disabled or blocked.");
-        return;
-      }
-
-      alert("Diagnostic Step 3: Requesting OS Hardware Keys...");
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(hardcodedPublicKey) as any
-      });
-
-      alert("Diagnostic Step 4: Token generated! Shipping to tRPC...");
-      const subscriptionJSON = subscription.toJSON();
-
-      // Execute database write
-      await utils.notifications.saveSubscription.mutate({
-        endpoint: subscriptionJSON.endpoint!,
-        auth_key: subscriptionJSON.keys!.auth!,
-        p256dh_key: subscriptionJSON.keys!.p256dh!
-      });
-
-      alert("🏆 SUCCESS: Row successfully committed to Supabase!");
-    } catch (err: any) {
-      alert(`❌ HANDSHAKE CRASHED AT STEP: ${err.name || "Error"} -> ${err.message || err}`);
-      console.error("Diagnostic failure:", err);
-    }
-  }
 
   // Real-time subscription
   useEffect(() => {
@@ -218,7 +143,7 @@ export function NotificationPanel() {
             <div className="px-4 py-3 border-b border-ddt-border bg-ddt-raised/50 flex flex-col gap-2">
               <button
                 id="push-notification-toggle-btn"
-                onClick={isSubscribed ? unsubscribeUser : debugMobileHandshake}
+                onClick={isSubscribed ? unsubscribeUser : subscribeUser}
                 disabled={pushLoading}
                 className={cn(
                   "w-full py-2 bg-[#141C2E] border-2 border-[#A3E635] rounded-xl text-white font-bold text-xs text-center shadow-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2",
