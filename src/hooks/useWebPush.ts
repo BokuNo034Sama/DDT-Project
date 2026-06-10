@@ -35,8 +35,17 @@ export function useWebPush() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       return null;
     }
-    const registration = await navigator.serviceWorker.ready;
-    return await registration.pushManager.getSubscription();
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      if (!registrations || registrations.length === 0) {
+        return null;
+      }
+      const registration = registrations[0];
+      return await registration.pushManager.getSubscription();
+    } catch (err) {
+      console.error("Error retrieving active subscription instance:", err);
+      return null;
+    }
   }, []);
 
   // Sync subscription state from browser
@@ -57,9 +66,16 @@ export function useWebPush() {
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
       setIsSupported(true);
-      // Wait for service worker to load / be ready before checking subscription
-      navigator.serviceWorker.ready.then(() => {
-        checkSubscription();
+      // Bypasses the .ready deadlock by pulling what's currently in memory
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations && registrations.length > 0) {
+          checkSubscription();
+        } else {
+          setLoading(false);
+        }
+      }).catch((err) => {
+        console.error("Error checking active registrations on init:", err);
+        setLoading(false);
       });
     } else {
       setLoading(false);
