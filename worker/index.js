@@ -1,9 +1,9 @@
-// Forces the waiting service worker to become the active service worker immediately
+// Force the installing service worker to become the active service worker immediately
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); 
 });
 
-// Forces the active worker to immediately control all open tabs
+// Force the active service worker to take control of all open browser tabs immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });

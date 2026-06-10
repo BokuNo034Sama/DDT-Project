@@ -104,7 +104,6 @@ export function useWebPush() {
     try {
       setIsEnabling(true);
       
-      // Step 1: Request System Permissions
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         alert("❌ Permission denied by user.");
@@ -112,28 +111,12 @@ export function useWebPush() {
         return;
       }
 
-      let registration: ServiceWorkerRegistration | undefined;
-
-      // Step 2: Extract active controller or fallback to fresh registration
-      if (navigator.serviceWorker.controller) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        registration = regs.find(r => r.active === navigator.serviceWorker.controller);
-      }
+      alert("Step 1: Fetching current worker instance...");
+      let registration = await navigator.serviceWorker.getRegistration('/');
 
       if (!registration) {
-        console.log("No controller found. Registering clean service worker instance...");
+        alert("Step 2: Registering fresh worker mapping...");
         registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        
-        // Securely wait for the newly registered worker to finish its installation state
-        await new Promise<void>((resolve) => {
-          if (registration?.installing) {
-            registration.installing.addEventListener('statechange', (e: any) => {
-              if (e.target.state === 'activated') resolve();
-            });
-          } else {
-            resolve();
-          }
-        });
       }
 
       if (!registration || !registration.pushManager) {
@@ -142,15 +125,16 @@ export function useWebPush() {
         return;
       }
 
-      // Step 3: Cryptographic Key Exchange Execution
+      alert("Step 3: Synchronizing hardware push channels...");
+      // Direct execution pass without waiting for statechange loops
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
-      
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
       });
 
-      // Step 4: Sync Hardware Payload directly to Supabase
+      alert("Step 4: Shipping hardware tokens to Supabase...");
       const subscriptionJSON = subscription.toJSON();
 
       await utils.notifications.saveSubscription.mutate({
@@ -159,7 +143,7 @@ export function useWebPush() {
         p256dh_key: subscriptionJSON.keys!.p256dh!
       });
 
-      alert("🏆 SUCCESS: Your phone is registered! Check your Supabase table rows.");
+      alert("🏆 SUCCESS: Secure hardware link created in database!");
       setIsEnabled(true);
     } catch (err: any) {
       alert(`❌ Handshake Interrupted: ${err.message || err}`);
