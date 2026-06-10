@@ -103,8 +103,8 @@ export function useWebPush() {
 
     try {
       setIsEnabling(true);
-      alert("Step 1: Requesting system permission...");
       
+      // Step 1: Request System Permissions
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         alert("❌ Permission denied by user.");
@@ -112,30 +112,37 @@ export function useWebPush() {
         return;
       }
 
-      alert("Step 2: Scanning for active service worker...");
-      // Bypasses the .ready deadlock by pulling what's currently in memory
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      
-      if (!registrations || registrations.length === 0) {
-        alert("❌ Critical: No Service Worker found running in this browser cache. Running clean registration backup...");
-        // Force register on the spot
-        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        alert("🔄 Worker registered. Please refresh your browser tab and try once more.");
+      let registration: ServiceWorkerRegistration | undefined;
+
+      // Step 2: Extract active controller or fallback to fresh registration
+      if (navigator.serviceWorker.controller) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        registration = regs.find(r => r.active === navigator.serviceWorker.controller);
+      }
+
+      if (!registration) {
+        console.log("No controller found. Registering clean service worker instance...");
+        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        
+        // Securely wait for the newly registered worker to finish its installation state
+        await new Promise<void>((resolve) => {
+          if (registration?.installing) {
+            registration.installing.addEventListener('statechange', (e: any) => {
+              if (e.target.state === 'activated') resolve();
+            });
+          } else {
+            resolve();
+          }
+        });
+      }
+
+      if (!registration || !registration.pushManager) {
+        alert("❌ Critical Error: Push Management is unavailable on this browser instance.");
         setIsEnabling(false);
         return;
       }
 
-      // Grab the primary active service worker registration instance
-      const registration = registrations[0];
-      alert(`Step 3: Worker verified! Active scope: ${registration.scope}`);
-
-      if (!registration.pushManager) {
-        alert("❌ Critical Error: Your mobile browser engine supports service workers but native Push Management is completely unavailable or restricted.");
-        setIsEnabling(false);
-        return;
-      }
-
-      alert("Step 4: Requesting cryptographic hardware keys...");
+      // Step 3: Cryptographic Key Exchange Execution
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
       
       const subscription = await registration.pushManager.subscribe({
@@ -143,7 +150,7 @@ export function useWebPush() {
         applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
       });
 
-      alert("Step 5: Handshake successful! Syncing data arrays to Supabase...");
+      // Step 4: Sync Hardware Payload directly to Supabase
       const subscriptionJSON = subscription.toJSON();
 
       await utils.notifications.saveSubscription.mutate({
@@ -152,13 +159,13 @@ export function useWebPush() {
         p256dh_key: subscriptionJSON.keys!.p256dh!
       });
 
-      alert("🏆 SUCCESS: Hardware endpoint saved to database!");
+      alert("🏆 SUCCESS: Your phone is registered! Check your Supabase table rows.");
       setIsEnabled(true);
     } catch (err: any) {
-      alert(`❌ HANDSHAKE BLOCKED: ${err.name || "Error"} -> ${err.message || err}`);
-      console.error("Web Push handshake execution crash:", err);
+      alert(`❌ Handshake Interrupted: ${err.message || err}`);
+      console.error(err);
     } finally {
-      setIsEnabling(false); // Safeguard: Always kill the loading spinner
+      setIsEnabling(false);
     }
   }, [savePushSubscriptionMutation]);
 
