@@ -119,6 +119,30 @@ export function useWebPush() {
         registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       }
 
+      // 🔍 CRITICAL CHECKPOINT: Explicitly poll or wait until the worker is active in memory
+      alert("Step 2.5: Verifying worker activation readiness...");
+      
+      // If the worker is still installing or waiting, wait for it to take over active status
+      if (!registration.active) {
+        const activeWorker = registration.installing || registration.waiting;
+        if (activeWorker) {
+          await new Promise<void>((resolve) => {
+            activeWorker.addEventListener('statechange', (e: any) => {
+              if (e.target.state === 'activated' || registration.active) {
+                resolve();
+              }
+            });
+            // Safety timeout: don't let it hang forever if already activating
+            setTimeout(() => resolve(), 2000);
+          });
+        }
+      }
+
+      // Double-check fallback: Give the browser an extra operational tick to promote the worker to active
+      if (!registration.active) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
       if (!registration || !registration.pushManager) {
         alert("❌ Critical Error: Push Management is unavailable on this browser instance.");
         setIsEnabling(false);
@@ -126,9 +150,8 @@ export function useWebPush() {
       }
 
       alert("Step 3: Synchronizing hardware push channels...");
-      // Direct execution pass without waiting for statechange loops
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
-
+      
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
