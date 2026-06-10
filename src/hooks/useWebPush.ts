@@ -112,30 +112,31 @@ export function useWebPush() {
       }
 
       alert("Step 1: Inspecting physical service worker registration footprint...");
-      
-      // 1. Force register explicitly at the root and wait for the browser handle to return
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       
-      alert("Step 2: Checking system controller synchronization...");
+      alert("Step 2: Enforcing instant client control alignment...");
       
-      // 2. If the page doesn't have an active controller assigned yet, force a page claim routine
-      if (!navigator.serviceWorker.controller) {
-        alert("Step 2.2: Page is uncontrolled. Forcing sync wait handler...");
-        await new Promise<void>((resolve) => {
-          const checkReady = () => {
-            if (registration.active) {
-              resolve();
-            } else {
-              setTimeout(checkReady, 200);
-            }
-          };
-          checkReady();
-        });
+      // Bypasses the null controller deadlock by manually initializing message bindings
+      if (navigator.serviceWorker.startMessages) {
+        navigator.serviceWorker.startMessages();
       }
 
-      alert("Step 2.5: Forcing extra hardware thread cool-down...");
-      // Give mobile browser engines an extra structural delay to bind low-level system communication channels
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Direct check: if registration has an active token, proceed instantly
+      if (!registration.active) {
+        alert("Step 2.2: Waking up dormant service worker thread...");
+        const activeWorker = registration.installing || registration.waiting;
+        if (activeWorker) {
+          await new Promise<void>((resolve) => {
+            activeWorker.addEventListener('statechange', (e: any) => {
+              if (e.target.state === 'activated') resolve();
+            });
+            setTimeout(() => resolve(), 1000); // Strict cutoff
+          });
+        }
+      }
+
+      alert("Step 2.5: Waking up push hardware listeners...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       if (!registration || !registration.pushManager) {
         alert("❌ Critical Error: Push Management is unavailable on this browser instance.");
@@ -143,29 +144,14 @@ export function useWebPush() {
         return;
       }
 
-      alert("Step 3: Synchronizing hardware push channels (with latency fallback)...");
+      alert("Step 3: Synchronizing hardware push channels...");
       const publicVapidKey = "BOw0T71w5QrGUHWfzX0waikm0fJbjsqkZEaIDb2ffpdp0hHcYYPEonNC7yDWP2Yh6jVhYx7e9yBqNhWElnxBwqY";
       
-      let subscription: any = null;
-      let retries = 3;
-      let delay = 1500;
-
-      while (retries > 0) {
-        try {
-          // Target the active instance directly to bypass browser execution delays
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
-          });
-          break; 
-        } catch (subscribeError: any) {
-          retries--;
-          alert(`⚠️ Retrying push connection... Attempts left: ${retries}`);
-          if (retries === 0) throw subscribeError;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          delay += 1000;
-        }
-      }
+      // Invoke subscription directly against the registration footprint
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey) as any
+      });
 
       alert("Step 4: Shipping hardware tokens to Supabase...");
       const subscriptionJSON = subscription.toJSON();
