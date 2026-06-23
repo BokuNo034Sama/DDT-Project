@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -7,6 +8,7 @@ import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { PipelineBar } from "@/components/projects/PipelineBar";
 import { SiteVisitsList } from "@/components/projects/SiteVisitsList";
 import { StatusHistory } from "@/components/projects/StatusHistory";
+import { SiteInspectionsReel } from "@/components/projects/SiteInspectionsReel";
 import { TopBar } from "@/components/layout/TopBar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -15,6 +17,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const isOnline = useNetworkStatus();
+  const [activeTab, setActiveTab] = useState<"history" | "inspections">("history");
   const { data: project, isLoading, error } = trpc.projects.getById.useQuery(
     { id },
     {
@@ -81,8 +84,36 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         <div className="md:col-span-1">
           <SiteVisitsList project={project} />
         </div>
-        <div className="md:col-span-2">
-          <StatusHistory project={project} />
+        <div className="md:col-span-2 space-y-6">
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-ddt-border">
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`px-4 py-2 text-sm font-semibold tracking-wide border-b-2 transition-all ${
+                activeTab === "history"
+                  ? "border-ddt-accent text-ddt-text"
+                  : "border-transparent text-ddt-muted hover:text-ddt-text"
+              }`}
+            >
+              Status History
+            </button>
+            <button
+              onClick={() => setActiveTab("inspections")}
+              className={`px-4 py-2 text-sm font-semibold tracking-wide border-b-2 transition-all ${
+                activeTab === "inspections"
+                  ? "border-ddt-accent text-ddt-text"
+                  : "border-transparent text-ddt-muted hover:text-ddt-text"
+              }`}
+            >
+              Site Inspections
+            </button>
+          </div>
+
+          {activeTab === "history" ? (
+            <StatusHistory project={project} />
+          ) : (
+            <SiteInspectionsReel projectId={project.id} />
+          )}
         </div>
       </div>
     </div>

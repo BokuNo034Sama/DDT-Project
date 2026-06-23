@@ -43,6 +43,7 @@ export function SiteVisitModal({
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split("T")[0]);
   const [leaderStaffId, setLeaderStaffId] = useState<string | null>(null);
+  const [instructionNote, setInstructionNote] = useState("");
 
   const { register, getValues, reset } = useForm<{ floors: number | "" }>({
     defaultValues: {
@@ -98,6 +99,7 @@ export function SiteVisitModal({
       setSelectedStaffIds([]);
       setLeaderStaffId(null);
       setVisitDate(new Date().toISOString().split("T")[0]);
+      setInstructionNote("");
       reset({
         floors: project?.number_of_floors ?? "",
       });
@@ -155,6 +157,7 @@ export function SiteVisitModal({
       visitDate,
       numberOfFloors: floorsValue === "" || floorsValue === undefined ? undefined : Number(floorsValue),
       leaderStaffId: leaderStaffId ?? undefined,
+      managerInstructionNote: instructionNote || undefined,
     });
   };
 
@@ -202,6 +205,21 @@ export function SiteVisitModal({
               {...register("floors")}
               placeholder="e.g. 3"
               className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent focus:ring-ddt-accent text-sm"
+            />
+          </div>
+
+          {/* Contextual Instructions / Reminders */}
+          <div className="space-y-1.5">
+            <Label htmlFor="instructionNote" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">
+              Instructions / Reminders (Optional)
+            </Label>
+            <textarea
+              id="instructionNote"
+              rows={3}
+              value={instructionNote}
+              onChange={(e) => setInstructionNote(e.target.value)}
+              placeholder="Enter contextual instructions, facade access notes, safety reminders or equipment setups for the Team Leader..."
+              className="w-full bg-ddt-input border border-ddt-border focus:border-ddt-accent focus:ring-1 focus:ring-ddt-accent rounded-md py-2 px-3 text-sm text-ddt-text placeholder:text-ddt-faint focus:outline-none resize-none leading-relaxed"
             />
           </div>
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, managerProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPushNotification } from "@/lib/notifications/push";
 
 export const siteVisitsRouter = router({
   // Log staff site attendance
@@ -13,6 +14,7 @@ export const siteVisitsRouter = router({
         visitDate: z.string(), // ISO date string
         numberOfFloors: z.number().optional(),
         leaderStaffId: z.string().uuid().optional(),
+        managerInstructionNote: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -91,6 +93,23 @@ export const siteVisitsRouter = router({
 
       await adminClient.from("notifications").insert(notificationsToInsert);
 
+      // Create inspection log entry for the Team Leader
+      if (input.leaderStaffId) {
+        const { error: logError } = await adminClient
+          .from("site_visit_logs")
+          .insert({
+            project_id: input.projectId,
+            tenant_id: activeTenantId,
+            team_lead_id: input.leaderStaffId,
+            manager_id: ctx.userId,
+            manager_instruction_note: input.managerInstructionNote || null,
+            status: "assigned",
+          });
+        if (logError) {
+          console.error("Failed to create site_visit_logs entry:", logError);
+        }
+      }
+
       return data;
     }),
 
@@ -115,7 +134,7 @@ export const siteVisitsRouter = router({
   // List site visits by project ID
   listByProject: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const adminClient = createAdminClient();
 
       const { data: visits, error } = await adminClient
@@ -251,5 +270,263 @@ export const siteVisitsRouter = router({
       }
 
       return { success: true };
+    }),
+
+  assignVisitInstruction: managerProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        managerInstructionNote: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+
+      // Get tenant id
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+      const activeTenantId = profile.data?.tenant_id;
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
+
+      // 1. Find the active site_visit_logs row
+      const { data: existingLog } = await adminClient
+        .from("site_visit_logs")
+        .select("id, team_lead_id")
+        .eq("project_id", input.projectId)
+        .eq("status", "assigned")
+        .maybeSingle();
+
+      let teamLeadId: string | null = null;
+      
+      if (existingLog) {
+        teamLeadId = existingLog.team_lead_id;
+        const { error: updateError } = await adminClient
+          .from("site_visit_logs")
+          .update({
+            manager_instruction_note: input.managerInstructionNote,
+            manager_id: ctx.userId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingLog.id);
+        
+        if (updateError) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: updateError.message });
+        }
+      } else {
+        // Find team leader in scheduled site visits
+        const { data: leadVisit } = await adminClient
+          .from("site_visits")
+          .select("staff_id")
+          .eq("project_id", input.projectId)
+          .eq("is_team_leader", true)
+          .order("visit_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!leadVisit) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No designated Team Leader found for this project to assign instructions to."
+          });
+        }
+
+        teamLeadId = leadVisit.staff_id;
+
+        const { error: insertError } = await adminClient
+          .from("site_visit_logs")
+          .insert({
+            project_id: input.projectId,
+            tenant_id: activeTenantId,
+            team_lead_id: leadVisit.staff_id,
+            manager_id: ctx.userId,
+            manager_instruction_note: input.managerInstructionNote,
+            status: "assigned",
+          });
+
+        if (insertError) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: insertError.message });
+        }
+      }
+
+      // Dispatch Web Push notification to the Team Leader
+      if (teamLeadId) {
+        try {
+          await sendPushNotification({
+            userId: teamLeadId,
+            tenantId: activeTenantId,
+            title: "New Site Visit Instructions",
+            body: input.managerInstructionNote.length > 60 
+              ? input.managerInstructionNote.substring(0, 57) + "..."
+              : input.managerInstructionNote,
+            url: "/dashboard",
+          });
+        } catch (pushErr) {
+          console.error("Failed to send push notification:", pushErr);
+        }
+      }
+
+      return { success: true };
+    }),
+
+  submitInspectionLog: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        visitDate: z.string(),
+        fieldNotes: z.string().min(1),
+        images: z.array(
+          z.object({
+            url: z.string(),
+            type: z.string(),
+            capturedAt: z.string(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+      const now = new Date().toISOString();
+
+      // Get user tenant
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+      const activeTenantId = profile.data?.tenant_id;
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
+
+      // Look up site visit row for logged-in user to verify Team Leader role
+      const { data: userVisit, error: lookupError } = await adminClient
+        .from("site_visits")
+        .select("is_team_leader")
+        .eq("project_id", input.projectId)
+        .eq("visit_date", input.visitDate)
+        .eq("staff_id", ctx.userId)
+        .maybeSingle();
+
+      if (lookupError || !userVisit || !userVisit.is_team_leader) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Only the designated Team Leader can submit the inspection log.",
+        });
+      }
+
+      // 1. Find active log row
+      const { data: logRow } = await adminClient
+        .from("site_visit_logs")
+        .select("id, manager_id")
+        .eq("project_id", input.projectId)
+        .eq("status", "assigned")
+        .maybeSingle();
+
+      if (!logRow) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Active site visit log not found for assignment. Please ensure a team leader is assigned.",
+        });
+      }
+
+      // 2. Update site_visits table
+      const { error: visitUpdateError } = await adminClient
+        .from("site_visits")
+        .update({
+          status: "completed",
+          completed_at: now,
+        })
+        .eq("project_id", input.projectId)
+        .eq("visit_date", input.visitDate);
+
+      if (visitUpdateError) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: visitUpdateError.message });
+      }
+
+      // 3. Update site_visit_logs table
+      const { error: logUpdateError } = await adminClient
+        .from("site_visit_logs")
+        .update({
+          status: "completed",
+          field_notes: input.fieldNotes,
+          images: input.images as any,
+          completed_at: now,
+          updated_at: now,
+        })
+        .eq("id", logRow.id);
+
+      if (logUpdateError) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: logUpdateError.message });
+      }
+
+      // 4. Advance parent project status to wip if it is currently not_started
+      const { data: projectRecord } = await adminClient
+        .from("projects")
+        .select("status, ndt_code, created_by")
+        .eq("id", input.projectId)
+        .single();
+
+      if (projectRecord?.status === "not_started") {
+        await adminClient
+          .from("projects")
+          .update({ status: "wip", updated_at: now })
+          .eq("id", input.projectId);
+
+        await adminClient.from("status_history").insert({
+          project_id: input.projectId,
+          tenant_id: activeTenantId,
+          from_status: "not_started",
+          to_status: "wip",
+          changed_by: ctx.userId,
+          notes: "Auto-advanced because site inspection was completed by the Team Leader",
+        });
+      }
+
+      // 5. Insert notification for the assigning manager
+      const notifyUserId = logRow.manager_id || projectRecord?.created_by;
+      if (notifyUserId) {
+        await adminClient.from("notifications").insert({
+          tenant_id: activeTenantId,
+          user_id: notifyUserId,
+          type: "site_inspection",
+          title: "Site Inspection Completed",
+          body: `Team Leader completed the inspection log for project ${projectRecord?.ndt_code || "Unknown"}.`,
+          related_project_id: input.projectId,
+          is_read: false,
+        });
+      }
+
+      return { success: true };
+    }),
+
+  getInspectionDataByProject: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+      })
+    )
+    .query(async ({ input }) => {
+      const adminClient = createAdminClient();
+
+      const { data: logs, error } = await adminClient
+        .from("site_visit_logs")
+        .select(`
+          *,
+          team_lead_user:users!site_visit_logs_team_lead_id_fkey (id, full_name, role),
+          manager_user:users!site_visit_logs_manager_id_fkey (id, full_name, role)
+        `)
+        .eq("project_id", input.projectId)
+        .order("completed_at", { ascending: false });
+
+      if (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      return logs;
     }),
 });

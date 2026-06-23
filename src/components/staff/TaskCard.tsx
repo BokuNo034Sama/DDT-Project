@@ -4,21 +4,19 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { UserPill } from "@/components/ui/UserPill";
 import { NdtCode } from "@/components/ui/NdtCode";
 import { 
   Play, 
   CheckCircle, 
   Clock, 
-  User, 
   Activity, 
   Brush, 
   FileText, 
   FileCheck,
-  AlertCircle,
   Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InspectionCompletionModal } from "./InspectionCompletionModal";
 
 interface TaskCardProps {
   assignment: {
@@ -51,7 +49,7 @@ interface TaskCardProps {
 export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
   const { toast } = useToast();
   const utils = trpc.useUtils();
-  const [loading, setLoading] = useState(false);
+  const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
 
   const startMutation = trpc.stages.start.useMutation({
     onSuccess: () => {
@@ -142,10 +140,7 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
 
   const handleComplete = () => {
     if (assignment.task_type === "site_visit") {
-      completeVisitMutation.mutate({
-        projectId: assignment.project_id,
-        visitDate: assignment.visit_date!,
-      });
+      setIsInspectionModalOpen(true);
     } else {
       completeMutation.mutate({ stageAssignmentId: assignment.id });
     }
@@ -326,6 +321,17 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
           </>
         )}
       </div>
+      {isInspectionModalOpen && (
+        <InspectionCompletionModal
+          isOpen={isInspectionModalOpen}
+          onOpenChange={setIsInspectionModalOpen}
+          projectId={assignment.project_id}
+          visitDate={assignment.visit_date!}
+          projectCode={assignment.project.ndt_code}
+          clientName={assignment.project.client_name}
+          onSuccess={onSuccess}
+        />
+      )}
     </div>
   );
 }

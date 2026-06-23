@@ -407,6 +407,53 @@ export interface Database {
           created_at?: string;
         };
       };
+      site_visit_logs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          project_id: string;
+          team_lead_id: string;
+          manager_id: string | null;
+          manager_instruction_note: string | null;
+          field_notes: string | null;
+          images: Json;
+          status: "assigned" | "completed";
+          assigned_at: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          project_id: string;
+          team_lead_id: string;
+          manager_id?: string | null;
+          manager_instruction_note?: string | null;
+          field_notes?: string | null;
+          images?: Json;
+          status?: "assigned" | "completed";
+          assigned_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          project_id?: string;
+          team_lead_id?: string;
+          manager_id?: string | null;
+          manager_instruction_note?: string | null;
+          field_notes?: string | null;
+          images?: Json;
+          status?: "assigned" | "completed";
+          assigned_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
