@@ -379,8 +379,7 @@ export function InspectionCompletionModal({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept="image/jpeg, image/png, image/webp"
         onChange={handleFileChange}
         className="hidden"
       />
