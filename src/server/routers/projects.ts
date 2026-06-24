@@ -422,25 +422,76 @@ export const projectsRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const { supabase, tenantId } = ctx;
-      try {
-        const { error } = await supabase
-          .from("projects")
-          .delete()
-          .eq("id", input.id)
-          .eq("tenant_id", tenantId);
+      const projectId = input.id;
 
-        if (error) {
-          throw error;
-        }
+      // 1. Clear out stage assignments tied to this project
+      const { error: err1 } = await supabase
+        .from("project_stage_assignments")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err1) throw err1;
 
-        return { success: true };
-      } catch (error: any) {
-        console.error("DATABASE DELETION FAILED: ", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: error.message || "Failed to delete project due to foreign key constraints.",
-        });
+      // 2. Clear out status history references
+      const { error: err2 } = await supabase
+        .from("status_history")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err2) throw err2;
+
+      // 3. Clear out child site visits
+      const { error: err3 } = await supabase
+        .from("site_visits")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err3) throw err3;
+
+      // 4. Clear out child site visits logs
+      const { error: err4 } = await supabase
+        .from("site_visit_logs")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err4) throw err4;
+
+      // 5. Clear out proof reviews
+      const { error: err5 } = await supabase
+        .from("proof_reviews")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err5) throw err5;
+
+      // 6. Clear out report checks
+      const { error: err6 } = await supabase
+        .from("report_checks")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err6) throw err6;
+
+      // 7. Clear out notifications
+      const { error: err7 } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("related_project_id", projectId)
+        .eq("tenant_id", tenantId);
+      if (err7) throw err7;
+
+      // 8. Finally, safely purge the root project row
+      const { error } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", projectId)
+        .eq("tenant_id", tenantId);
+
+      if (error) {
+        throw error;
       }
+
+      return { success: true };
     }),
 });
 
