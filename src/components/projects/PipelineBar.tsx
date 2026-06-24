@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useToast } from "@/hooks/use-toast";
 
 import { ProjectWithRelations } from "@/types";
 
@@ -32,12 +33,68 @@ interface PipelineBarProps {
 
 export function PipelineBar({ project }: PipelineBarProps) {
   const isOnline = useNetworkStatus();
+  const { toast } = useToast();
+  const utils = trpc.useUtils();
+  
   // Modals visibility state
   const [assignStage, setAssignStage] = useState<"analysis" | "sketch" | "report_writing" | "proofreading" | null>(null);
   const [isProofOpen, setIsProofOpen] = useState(false);
+  const [activeReassignId, setActiveReassignId] = useState<string | null>(null);
 
   const { data: me } = trpc.staff.getMe.useQuery();
   const role = me?.role;
+
+  // Get active staff members in the tenant for reassigning dropdown
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+
+  const reassignMutation = trpc.tasks.reassignTask.useMutation({
+    onSuccess: async () => {
+      toast({
+        title: "Task Reassigned",
+        description: "The task has been successfully reassigned.",
+      });
+      await utils.projects.getById.invalidate({ id: project.id });
+      setActiveReassignId(null);
+    },
+    onError: (err) => {
+      toast({
+        title: "Reassignment Failed",
+        description: err.message || "Failed to reassign task.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = trpc.tasks.deleteTaskAssignment.useMutation({
+    onSuccess: async () => {
+      toast({
+        title: "Assignment Deleted",
+        description: "The task assignment has been successfully deleted.",
+      });
+      await utils.projects.getById.invalidate({ id: project.id });
+    },
+    onError: (err) => {
+      toast({
+        title: "Deletion Failed",
+        description: err.message || "Failed to delete task assignment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!activeReassignId) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".reassign-container")) {
+        setActiveReassignId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [activeReassignId]);
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 
@@ -205,15 +262,84 @@ export function PipelineBar({ project }: PipelineBarProps) {
                 {/* Assignee Section */}
                 <div className="my-4">
                   {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <UserPill
-                        name={assignment.assigned_user?.full_name || "Assigned Technician"}
-                        avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")
-                          .substring(0, 2)}
-                      />
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <UserPill
+                          name={assignment.assigned_user?.full_name || "Assigned Technician"}
+                          avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")
+                             .substring(0, 2)}
+                        />
+                      </div>
+
+                      {isManager && (
+                        <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
+                          {/* Reassign dropdown triggering */}
+                          <div className="relative">
+                            <Button
+                              onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
+                              disabled={!isOnline || reassignMutation.isPending}
+                              className={cn(
+                                "w-full bg-ddt-raised hover:bg-ddt-border text-ddt-text border border-ddt-border font-semibold text-[11px] py-1.5 px-2.5 rounded-lg flex items-center justify-center gap-1.5 h-auto transition-all duration-200",
+                                (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              {reassignMutation.isPending && activeReassignId === assignment.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-ddt-accent" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                              <span>Reassign</span>
+                            </Button>
+
+                            {activeReassignId === assignment.id && (
+                              <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                                {loadingStaff ? (
+                                  <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
+                                    <span>Loading staff...</span>
+                                  </div>
+                                ) : (
+                                  staffList
+                                    ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
+                                    .map((member: any) => (
+                                      <button
+                                        key={member.id}
+                                        onClick={() => {
+                                          reassignMutation.mutate({
+                                            taskId: assignment.id,
+                                            newStaffId: member.id,
+                                          });
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
+                                      >
+                                        {member.full_name}
+                                      </button>
+                                    ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Neubrutalist Delete Task Button */}
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to delete this task assignment?")) {
+                                deleteMutation.mutate({ taskId: assignment.id });
+                              }
+                            }}
+                            disabled={!isOnline || deleteMutation.isPending}
+                            className={cn(
+                              "w-full text-black bg-[#F59E0B] hover:bg-[#FBBF24] font-syne font-bold py-1.5 px-3 text-xs rounded border-2 border-black shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 hover:-translate-x-0.5 active:translate-y-0 active:translate-x-0 active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                              (!isOnline || deleteMutation.isPending) && "opacity-50 cursor-not-allowed shadow-none translate-x-0 translate-y-0"
+                            )}
+                          >
+                            <span>Delete Task</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>

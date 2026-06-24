@@ -9,6 +9,7 @@ import { performanceRouter } from "./performance";
 import { searchRouter } from "./search";
 import { adminRouter } from "./admin";
 import { settingsRouter } from "./settings";
+import { tasksRouter } from "./tasks";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   search: searchRouter,
   admin: adminRouter,
   settings: settingsRouter,
+  tasks: tasksRouter,
 });
 
 export type AppRouter = typeof appRouter;
