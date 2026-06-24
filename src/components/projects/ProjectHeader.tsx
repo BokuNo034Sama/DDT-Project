@@ -29,6 +29,8 @@ import {
   Loader2,
 } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+
 import { ProjectWithRelations } from "@/types";
 
 interface ProjectHeaderProps {
@@ -38,7 +40,33 @@ interface ProjectHeaderProps {
 
 export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isConfirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const deleteMutation = trpc.projects.delete.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Project Deleted",
+        description: "The project has been successfully deleted.",
+      });
+      setConfirmDeleteModalOpen(false);
+      router.push("/projects");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Failed to delete project.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExecuteProjectDeletion = () => {
+    if (deleteConfirmationText !== "DELETE") return;
+    deleteMutation.mutate({ id: project.id });
+  };
 
   const { data: me } = trpc.staff.getMe.useQuery();
   const role = me?.role || null;
@@ -130,13 +158,24 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
             </h1>
           </div>
           {isManager && (
-            <Button
-              onClick={handleOpen}
-              className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
-            >
-              <Edit2 className="w-4 h-4" />
-              <span>Edit Details</span>
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <Button
+                onClick={handleOpen}
+                className="bg-ddt-raised hover:bg-ddt-border border border-ddt-border hover:border-ddt-accent text-ddt-text hover:text-ddt-accent transition-all duration-200 gap-2 shrink-0 py-5 px-4 rounded-lg w-full sm:w-auto"
+              >
+                <Edit2 className="w-4 h-4" />
+                <span>Edit Details</span>
+              </Button>
+              <button
+                onClick={() => {
+                  setDeleteConfirmationText("");
+                  setConfirmDeleteModalOpen(true);
+                }}
+                className="text-xs font-medium px-4 py-3 border border-slate-800 hover:border-rose-900/50 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 rounded-lg transition-all w-full sm:w-auto h-[42px] flex items-center justify-center gap-1.5"
+              >
+                Delete Project
+              </button>
+            </div>
           )}
         </div>
 
@@ -369,6 +408,51 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Project Delete Confirmation Dialog */}
+      {isConfirmDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d1527] border border-slate-800 p-6 rounded-xl max-w-md w-full shadow-2xl flex flex-col space-y-4">
+            <h3 className="text-sm font-bold text-white">Are you absolutely sure you want to delete this project?</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This structural execution will permanently remove the project pipeline, scientific inspection logs, and all compiled field records. This action is completely irreversible.
+            </p>
+
+            <div className="flex flex-col space-y-1.5 pt-2">
+              <label htmlFor="confirm-delete-input" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Type <span className="text-rose-400 font-bold">DELETE</span> to confirm:
+              </label>
+              <input
+                id="confirm-delete-input"
+                type="text"
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full bg-slate-900 border border-slate-800 focus:border-rose-900/60 focus:ring-1 focus:ring-rose-900/60 rounded-md py-2 px-3 text-xs text-white placeholder:text-slate-600 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteModalOpen(false)}
+                className="text-xs px-3 py-2 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg hover:border-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteProjectDeletion}
+                disabled={deleteConfirmationText !== "DELETE" || deleteMutation.isPending}
+                className="text-xs px-3 py-2 bg-rose-950/40 border border-rose-800/60 hover:bg-rose-900/60 text-rose-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                {deleteMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Permanent Deletion</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

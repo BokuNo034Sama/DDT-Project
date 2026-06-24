@@ -403,5 +403,26 @@ export const projectsRouter = router({
       proofReviewCount: proofReviewCount.error ? 0 : (proofReviewCount.count ?? 0),
     };
   }),
+
+  delete: managerProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { supabase, tenantId } = ctx;
+
+      const { error } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", input.id)
+        .eq("tenant_id", tenantId);
+
+      if (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error.message || "Failed to delete project",
+        });
+      }
+
+      return { success: true };
+    }),
 });
 
