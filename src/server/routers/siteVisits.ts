@@ -529,4 +529,140 @@ export const siteVisitsRouter = router({
 
       return logs;
     }),
+
+  reassignStaff: managerProcedure
+    .input(
+      z.object({
+        siteVisitId: z.string().uuid(),
+        newStaffId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+      const activeTenantId = profile.data?.tenant_id;
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
+
+      // 1. Fetch current site visit
+      const { data: visit, error: fetchError } = await adminClient
+        .from("site_visits")
+        .select("*")
+        .eq("id", input.siteVisitId)
+        .eq("tenant_id", activeTenantId)
+        .single();
+
+      if (fetchError || !visit) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Site visit not found" });
+      }
+
+      const oldStaffId = visit.staff_id;
+
+      // 2. If it is the team leader, update active log
+      if (visit.is_team_leader) {
+        const { data: log } = await adminClient
+          .from("site_visit_logs")
+          .select("id")
+          .eq("project_id", visit.project_id)
+          .eq("team_lead_id", oldStaffId)
+          .eq("status", "assigned")
+          .maybeSingle();
+
+        if (log) {
+          await adminClient
+            .from("site_visit_logs")
+            .update({
+              team_lead_id: input.newStaffId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", log.id);
+        }
+      }
+
+      // 3. Update the site_visits staff_id
+      const { data: updated, error: updateError } = await adminClient
+        .from("site_visits")
+        .update({
+          staff_id: input.newStaffId,
+        })
+        .eq("id", input.siteVisitId)
+        .select()
+        .single();
+
+      if (updateError || !updated) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: updateError?.message || "Failed to reassign staff",
+        });
+      }
+
+      // Dispatch Web Push notification to the new staff member
+      try {
+        await sendPushNotification({
+          userId: input.newStaffId,
+          tenantId: activeTenantId,
+          title: visit.is_team_leader ? "Designated as Team Leader" : "New Site Visit Assigned",
+          body: visit.is_team_leader
+            ? `You have been designated as the Team Leader for the site visit on ${visit.visit_date}.`
+            : `You have been scheduled for a site visit on ${visit.visit_date}.`,
+          url: "/dashboard",
+        });
+      } catch (pushErr) {
+        console.error("Failed to send push notification:", pushErr);
+      }
+
+      return updated;
+    }),
+
+  deleteEntireSiteVisit: managerProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        visitDate: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+
+      const profile = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+      const activeTenantId = profile.data?.tenant_id;
+      if (!activeTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
+      }
+
+      // 1. Delete all site visits on this date for this project
+      const { error: deleteVisitsError } = await adminClient
+        .from("site_visits")
+        .delete()
+        .eq("project_id", input.projectId)
+        .eq("visit_date", input.visitDate)
+        .eq("tenant_id", activeTenantId);
+
+      if (deleteVisitsError) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: deleteVisitsError.message,
+        });
+      }
+
+      // 2. Delete corresponding log entries
+      await adminClient
+        .from("site_visit_logs")
+        .delete()
+        .eq("project_id", input.projectId)
+        .eq("status", "assigned")
+        .eq("tenant_id", activeTenantId);
+
+      return { success: true };
+    }),
 });

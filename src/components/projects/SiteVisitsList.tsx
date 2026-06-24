@@ -41,6 +41,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const isOnline = useNetworkStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeReassignId, setActiveReassignId] = useState<string | null>(null);
 
   // States for instructions editor
   const [editingInstructionText, setEditingInstructionText] = useState<string>("");
@@ -48,6 +49,9 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
 
   const { data: me } = trpc.staff.getMe.useQuery();
   const role = me?.role || null;
+
+  // Get active staff members in the tenant for reassigning dropdown
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 
@@ -117,11 +121,11 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
     },
   });
 
-  const deleteMutation = trpc.siteVisits.remove.useMutation({
+  const deleteEntireVisitMutation = trpc.siteVisits.deleteEntireSiteVisit.useMutation({
     onSuccess: () => {
       toast({
         title: "Site Visit Deleted",
-        description: "The site visit record has been removed.",
+        description: "The entire site visit and associated log have been removed.",
       });
       utils.projects.getById.invalidate({ id: project.id });
       utils.siteVisits.listByProject.invalidate({ projectId: project.id });
@@ -129,18 +133,53 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
     },
     onError: (error) => {
       toast({
-        title: "Failed to delete record",
-        description: error.message || "Failed to remove site visit record.",
+        title: "Failed to delete site visit",
+        description: error.message || "Failed to remove site visit.",
         variant: "destructive",
       });
       setDeletingId(null);
     },
   });
 
-  const handleDelete = (id: string) => {
-    setDeletingId(id);
-    deleteMutation.mutate({ siteVisitId: id });
+  const reassignStaffMutation = trpc.siteVisits.reassignStaff.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Staff Reassigned",
+        description: "Successfully updated crew assignment for this visit.",
+      });
+      utils.siteVisits.listByProject.invalidate({ projectId: project.id });
+      setActiveReassignId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to reassign staff",
+        description: error.message || "Failed to swap crew member.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteSiteVisit = (visitDate: string) => {
+    setDeletingId(visitDate);
+    deleteEntireVisitMutation.mutate({
+      projectId: project.id,
+      visitDate: visitDate,
+    });
   };
+
+  useEffect(() => {
+    if (!activeReassignId) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".reassign-container")) {
+        setActiveReassignId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [activeReassignId]);
 
   const handleOpenEditInstruction = (currentText: string) => {
     setEditingInstructionText(currentText);
@@ -156,6 +195,31 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   };
 
   const visits = visitsList || [];
+
+  // Group visits by date to consolidate cards
+  const groupedVisits: Record<string, {
+    visitDate: string;
+    number_of_floors: number | null;
+    status: string;
+    crew: Array<any>;
+  }> = {};
+
+  visits.forEach((v: any) => {
+    const dateStr = v.visit_date;
+    if (!groupedVisits[dateStr]) {
+      groupedVisits[dateStr] = {
+        visitDate: dateStr,
+        number_of_floors: v.number_of_floors,
+        status: v.status,
+        crew: [],
+      };
+    }
+    groupedVisits[dateStr].crew.push(v);
+  });
+
+  const consolidatedVisits = Object.values(groupedVisits).sort(
+    (a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime()
+  );
 
   return (
     <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 flex flex-col h-full justify-between">
@@ -188,7 +252,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-ddt-accent" />
           </div>
-        ) : visits.length === 0 ? (
+        ) : consolidatedVisits.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center bg-ddt-input/20 border border-dashed border-ddt-border rounded-lg p-6">
             <CalendarDays className="w-8 h-8 text-ddt-faint mb-2" />
             <p className="text-xs text-ddt-muted font-medium">No site visits recorded yet</p>
@@ -199,91 +263,145 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
             )}
           </div>
         ) : (
-          <div className="space-y-3 pr-1">
-            {visits.map((visit) => {
-              const staffName = visit.staff_user?.full_name || "Unknown Technician";
-              const initials = staffName
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")
-                .substring(0, 2);
-
-              // Find active or completed site visit log matching this team lead
-              const matchedLog = (logsList || []).find(
-                (l) => l.team_lead_id === visit.staff_id
-              );
-              const hasInstruction = !!matchedLog?.manager_instruction_note;
-              const instructionText = matchedLog?.manager_instruction_note || "";
-
-              const avatarInitials = initials;
-              const isTeamLead = visit.is_team_leader;
-              const TrashIcon = Trash2;
-              const formattedDate = new Date(visit.visit_date).toLocaleDateString("en-US", {
+          <div className="space-y-4 pr-1">
+            {consolidatedVisits.map((visitGroup) => {
+              const formattedDate = new Date(visitGroup.visitDate).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               });
-              const floorCount = visit.number_of_floors || 0;
+              const floorCount = visitGroup.number_of_floors || 0;
+
+              // Find active or completed site visit log matching this team lead
+              const leadMember = visitGroup.crew.find((c: any) => c.is_team_leader);
+              const matchedLog = (logsList || []).find(
+                (l) => l.team_lead_id === leadMember?.staff_id
+              );
+              const hasInstruction = !!matchedLog?.manager_instruction_note;
+              const instructionText = matchedLog?.manager_instruction_note || "";
+
+              const assignedCrew = visitGroup.crew.map((c: any) => {
+                const staffName = c.staff_user?.full_name || "Unknown Technician";
+                const initials = staffName
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .substring(0, 2);
+                return {
+                  id: c.id, // site_visits row id
+                  staffId: c.staff_id,
+                  name: staffName,
+                  initials: initials,
+                  isLead: c.is_team_leader,
+                };
+              });
+
+              const TrashIcon = Trash2;
 
               return (
-                <div
-                  key={visit.id}
-                  className="relative w-full p-4 border border-slate-800 bg-[#0d1527] hover:border-slate-700 transition-colors flex flex-col space-y-3 rounded-xl"
-                >
-                  {/* HEADER ROW: Identity Grouping & Fixed Actions */}
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center space-x-3">
-                      {/* User Avatar */}
-                      <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase border border-blue-500/30">
-                        {avatarInitials}
-                      </div>
-                      {/* Name and Role Cluster */}
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-white tracking-wide">{staffName}</span>
-                        {isTeamLead && (
-                          <span className="inline-block text-[10px] uppercase tracking-wider font-bold text-sky-400 mt-0.5">
-                            ✦ Team Leader
-                          </span>
-                        )}
-                      </div>
+                <div key={visitGroup.visitDate} className="w-full p-4 bg-[#0d1527] border border-slate-800 rounded-xl flex flex-col space-y-4 relative">
+                  
+                  {/* HEADER ROW: Date and Floors */}
+                  <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                    <div className="flex items-center space-x-3 text-xs">
+                      <span className="font-semibold text-slate-300">{formattedDate}</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 text-[10px] tracking-wider uppercase">
+                        {floorCount} FLOORS
+                      </span>
                     </div>
-
-                    {/* Fixed Action Anchor */}
+                    
                     {isManager && (
-                      <button
-                        onClick={() => handleDelete(visit.id)}
-                        disabled={deletingId === visit.id || !isOnline}
+                      <button 
+                        onClick={() => handleDeleteSiteVisit(visitGroup.visitDate)}
+                        disabled={deletingId === visitGroup.visitDate || !isOnline}
                         className={cn(
-                          "p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all absolute top-3 right-3",
-                          (!isOnline || deletingId === visit.id) && "opacity-55 cursor-not-allowed"
+                          "p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all",
+                          (!isOnline || deletingId === visitGroup.visitDate) && "opacity-55 cursor-not-allowed"
                         )}
-                        title="Delete Site Visit"
+                        title="Delete Entire Site Visit"
                       >
-                        {deletingId === visit.id ? (
+                        {deletingId === visitGroup.visitDate ? (
                           <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
                         ) : (
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-4 h-4"/>
                         )}
                       </button>
                     )}
                   </div>
 
-                  {/* METADATA STRIP: Structural Parameters & Scheduling */}
-                  <div className="flex items-center space-x-3 pt-1 border-t border-slate-800/60 w-full text-xs text-slate-400">
-                    <span className="font-medium text-slate-300">{formattedDate}</span>
-                    <span className="text-slate-600">•</span>
-                    {/* Floor Target Badge */}
-                    <span className="bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 text-[10px] uppercase tracking-wider">
-                      {floorCount} Floors
-                    </span>
+                  {/* CREW LIST */}
+                  <div className="flex flex-col space-y-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Assigned Field Crew:</span>
+                    
+                    {assignedCrew.map((staff) => (
+                      <div key={staff.id} className="flex items-center justify-between bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 relative">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-7 h-7 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase border border-blue-500/30">
+                            {staff.initials}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium text-white">{staff.name}</span>
+                            <span className="text-[9px] uppercase tracking-wider text-sky-400 font-semibold">
+                              {staff.isLead ? "✦ Team Leader" : "Crew Member"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* REASSIGN DROPDOWN */}
+                        {isManager && (
+                          <div className="relative reassign-container">
+                            <button
+                              onClick={() => setActiveReassignId(activeReassignId === staff.id ? null : staff.id)}
+                              disabled={!isOnline || reassignStaffMutation.isPending}
+                              className="text-[10px] px-2.5 py-1 rounded border border-slate-800 hover:border-slate-600 bg-slate-900 text-slate-300 transition-all flex items-center gap-1"
+                            >
+                              {reassignStaffMutation.isPending && activeReassignId === staff.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-ddt-accent" />
+                              ) : (
+                                <span>Replace/Reassign</span>
+                              )}
+                            </button>
+
+                            {activeReassignId === staff.id && (
+                              <div className="absolute z-50 right-0 mt-1 w-44 bg-ddt-surface border border-slate-800 rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                                {loadingStaff ? (
+                                  <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
+                                    <span>Loading staff...</span>
+                                  </div>
+                                ) : (
+                                  staffList
+                                    ?.filter((member: any) => member.is_active !== false && member.id !== staff.staffId)
+                                    .map((member: any) => (
+                                      <button
+                                        key={member.id}
+                                        onClick={() => {
+                                          reassignStaffMutation.mutate({
+                                            siteVisitId: staff.id,
+                                            newStaffId: member.id,
+                                          });
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
+                                      >
+                                        {member.full_name}
+                                      </button>
+                                    ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
 
-                  {/* CONTEXT CALLOUT: Management Directives */}
-                  <div className="text-xs text-slate-500 italic bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 w-full flex flex-col gap-1.5">
+                  {/* INSTRUCTIONS */}
+                  <div className="text-xs text-slate-400 bg-slate-900/20 p-2.5 rounded-lg border border-slate-800/30 italic flex flex-col gap-1.5">
                     <span className="leading-normal">
                       {instructionText || "No custom deployment instructions specified by management."}
                     </span>
-                    {isManager && visit.is_team_leader && (visit.status === "pending" || visit.status === "in_progress") && (
+                    {isManager && leadMember && (leadMember.status === "pending" || leadMember.status === "in_progress") && (
                       <button
                         onClick={() => handleOpenEditInstruction(instructionText)}
                         className="text-ddt-accent hover:underline text-[10px] font-mono leading-none focus:outline-none w-fit mt-1 not-italic"
