@@ -620,7 +620,7 @@ export const siteVisitsRouter = router({
       return updated;
     }),
 
-  deleteEntireSiteVisit: managerProcedure
+  deleteSiteVisit: managerProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -640,7 +640,15 @@ export const siteVisitsRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
       }
 
-      // 1. Delete all site visits on this date for this project
+      // 1. Fetch current assigned crew members before deletion to send push sync notifications
+      const { data: crewVisits } = await adminClient
+        .from("site_visits")
+        .select("staff_id")
+        .eq("project_id", input.projectId)
+        .eq("visit_date", input.visitDate)
+        .eq("tenant_id", activeTenantId);
+
+      // 2. Delete all site visits on this date for this project
       const { error: deleteVisitsError } = await adminClient
         .from("site_visits")
         .delete()
@@ -655,13 +663,30 @@ export const siteVisitsRouter = router({
         });
       }
 
-      // 2. Delete corresponding log entries
+      // 3. Delete corresponding log entries
       await adminClient
         .from("site_visit_logs")
         .delete()
         .eq("project_id", input.projectId)
         .eq("status", "assigned")
         .eq("tenant_id", activeTenantId);
+
+      // 4. Hook into Web Push execution to trigger real-time data sync handshake broadcast to PWA service workers
+      if (crewVisits && crewVisits.length > 0) {
+        for (const crew of crewVisits) {
+          try {
+            await sendPushNotification({
+              userId: crew.staff_id,
+              tenantId: activeTenantId,
+              title: "Site Visit Removed",
+              body: "A site visit assignment was deleted by management.",
+              url: "/dashboard",
+            });
+          } catch (pushErr) {
+            console.error(`Failed sending sync push to staff ${crew.staff_id}:`, pushErr);
+          }
+        }
+      }
 
       return { success: true };
     }),

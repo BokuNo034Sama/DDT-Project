@@ -112,7 +112,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
       utils.siteVisits.getInspectionDataByProject.invalidate({ projectId: project.id });
       setIsInstructionOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Failed to save instructions",
         description: error.message || "Failed to update manager instruction note.",
@@ -121,7 +121,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
     },
   });
 
-  const deleteEntireVisitMutation = trpc.siteVisits.deleteEntireSiteVisit.useMutation({
+  const deleteSiteVisitMutation = trpc.siteVisits.deleteSiteVisit.useMutation({
     onSuccess: () => {
       toast({
         title: "Site Visit Deleted",
@@ -131,7 +131,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
       utils.siteVisits.listByProject.invalidate({ projectId: project.id });
       setDeletingId(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Failed to delete site visit",
         description: error.message || "Failed to remove site visit.",
@@ -150,7 +150,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
       utils.siteVisits.listByProject.invalidate({ projectId: project.id });
       setActiveReassignId(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Failed to reassign staff",
         description: error.message || "Failed to swap crew member.",
@@ -161,7 +161,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
 
   const handleDeleteSiteVisit = (visitDate: string) => {
     setDeletingId(visitDate);
-    deleteEntireVisitMutation.mutate({
+    deleteSiteVisitMutation.mutate({
       projectId: project.id,
       visitDate: visitDate,
     });
