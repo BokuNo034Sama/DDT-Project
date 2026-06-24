@@ -419,79 +419,110 @@ export const projectsRouter = router({
   }),
 
   deleteProject: managerProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().min(1, "Project ID is required"),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
+      const { id } = input;
       const { supabase, tenantId } = ctx;
-      const projectId = input.id;
 
-      // 1. Clear out stage assignments tied to this project
-      const { error: err1 } = await supabase
-        .from("project_stage_assignments")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err1) throw err1;
+      console.log(`[DEBUG DELETION] Initiating purge for Project: ${id} under Tenant: ${tenantId}`);
 
-      // 2. Clear out status history references
-      const { error: err2 } = await supabase
-        .from("status_history")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err2) throw err2;
+      try {
+        // 1. Double-check item existence & tenant matching before executing drops
+        const { data: existingProject, error: checkError } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("id", id)
+          .eq("tenant_id", tenantId)
+          .maybeSingle();
 
-      // 3. Clear out child site visits
-      const { error: err3 } = await supabase
-        .from("site_visits")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err3) throw err3;
+        if (checkError || !existingProject) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Project not found or access denied for ID: ${id}`,
+          });
+        }
 
-      // 4. Clear out child site visits logs
-      const { error: err4 } = await supabase
-        .from("site_visit_logs")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err4) throw err4;
+        // 2. Cascade manual cleanup of child dependencies to clear foreign key blockers
+        const { error: err1 } = await supabase
+          .from("project_stage_assignments")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err1) throw err1;
 
-      // 5. Clear out proof reviews
-      const { error: err5 } = await supabase
-        .from("proof_reviews")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err5) throw err5;
+        const { error: err2 } = await supabase
+          .from("status_history")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err2) throw err2;
 
-      // 6. Clear out report checks
-      const { error: err6 } = await supabase
-        .from("report_checks")
-        .delete()
-        .eq("project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err6) throw err6;
+        const { error: err3 } = await supabase
+          .from("site_visit_logs")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err3) throw err3;
 
-      // 7. Clear out notifications
-      const { error: err7 } = await supabase
-        .from("notifications")
-        .delete()
-        .eq("related_project_id", projectId)
-        .eq("tenant_id", tenantId);
-      if (err7) throw err7;
+        const { error: err4 } = await supabase
+          .from("site_visits")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err4) throw err4;
 
-      // 8. Finally, safely purge the root project row
-      const { error } = await supabase
-        .from("projects")
-        .delete()
-        .eq("id", projectId)
-        .eq("tenant_id", tenantId);
+        const { error: err5 } = await supabase
+          .from("proof_reviews")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err5) throw err5;
 
-      if (error) {
-        throw error;
+        const { error: err6 } = await supabase
+          .from("report_checks")
+          .delete()
+          .eq("project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err6) throw err6;
+
+        const { error: err7 } = await supabase
+          .from("notifications")
+          .delete()
+          .eq("related_project_id", id)
+          .eq("tenant_id", tenantId);
+        if (err7) throw err7;
+
+        // 3. Purge the parent project row
+        const { data: deletedProject, error: deleteError } = await supabase
+          .from("projects")
+          .delete()
+          .eq("id", id)
+          .eq("tenant_id", tenantId)
+          .select("id")
+          .single();
+
+        if (deleteError) {
+          throw deleteError;
+        }
+
+        console.log(`[DEBUG DELETION] Successfully removed project from DB:`, deletedProject.id);
+        return { success: true, deletedId: deletedProject.id };
+
+      } catch (error: any) {
+        console.error("[CRITICAL DELETION FAILURE BT]:", error);
+        
+        if (error instanceof TRPCError) throw error;
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Database block: ${error.message || "Foreign key constraint failure."}`,
+          cause: error,
+        });
       }
-
-      return { success: true };
     }),
 });
 
