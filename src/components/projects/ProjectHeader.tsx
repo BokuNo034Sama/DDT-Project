@@ -45,7 +45,7 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
   const [isConfirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
-  const deleteMutation = trpc.projects.delete.useMutation({
+  const deleteMutation = trpc.projects.deleteProject.useMutation({
     onSuccess: () => {
       toast({
         title: "Project Deleted",

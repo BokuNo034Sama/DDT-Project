@@ -404,25 +404,29 @@ export const projectsRouter = router({
     };
   }),
 
-  delete: managerProcedure
+  deleteProject: managerProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const { supabase, tenantId } = ctx;
+      try {
+        const { error } = await supabase
+          .from("projects")
+          .delete()
+          .eq("id", input.id)
+          .eq("tenant_id", tenantId);
 
-      const { error } = await supabase
-        .from("projects")
-        .delete()
-        .eq("id", input.id)
-        .eq("tenant_id", tenantId);
+        if (error) {
+          throw error;
+        }
 
-      if (error) {
+        return { success: true };
+      } catch (error: any) {
+        console.error("DATABASE DELETION FAILED: ", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error.message || "Failed to delete project",
+          message: error.message || "Failed to delete project due to foreign key constraints.",
         });
       }
-
-      return { success: true };
     }),
 });
 
