@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SiteVisitModal } from "./SiteVisitModal";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +60,44 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const { data: logsList } = trpc.siteVisits.getInspectionDataByProject.useQuery({
     projectId: project.id,
   });
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (!supabase || typeof supabase.channel !== "function") return;
+
+    const channel = supabase
+      .channel(`project-visits-${project.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "site_visits",
+          filter: `project_id=eq.${project.id}`,
+        },
+        () => {
+          utils.siteVisits.listByProject.invalidate({ projectId: project.id });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "site_visit_logs",
+          filter: `project_id=eq.${project.id}`,
+        },
+        () => {
+          utils.siteVisits.getInspectionDataByProject.invalidate({ projectId: project.id });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [project.id, supabase, utils]);
 
   const assignInstructionMutation = trpc.siteVisits.assignVisitInstruction.useMutation({
     onSuccess: () => {

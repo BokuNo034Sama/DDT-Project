@@ -43,6 +43,17 @@ export function StaffDashboard({ userName }: StaffDashboardProps) {
           utils.stages.getMyStages.invalidate();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "site_visits",
+        },
+        () => {
+          utils.stages.getMyStages.invalidate();
+        }
+      )
       .subscribe();
 
     return () => {
