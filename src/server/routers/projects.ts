@@ -404,6 +404,20 @@ export const projectsRouter = router({
     };
   }),
 
+  getDashboardList: protectedProcedure.query(async ({ ctx }) => {
+    const { supabase, tenantId } = ctx;
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    }
+    return data;
+  }),
+
   deleteProject: managerProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

@@ -46,15 +46,22 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   const deleteMutation = trpc.projects.deleteProject.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Project Deleted",
         description: "The project has been successfully deleted.",
       });
       setConfirmDeleteModalOpen(false);
-      router.push("/projects");
+      // 1. Force a global cache invalidation to instantly wipe the deleted project from the main dashboard sidebar/list
+      await utils.projects.getDashboardList.invalidate();
+      await utils.projects.list.invalidate();
+      await utils.projects.getDashboardData.invalidate();
+
+      // 2. Route the user cleanly back to the root workspace overview
+      router.push("/dashboard");
     },
     onError: (error: any) => {
+      console.error("Failed to delete project:", error.message);
       toast({
         title: "Deletion Failed",
         description: error.message || "Failed to delete project.",
