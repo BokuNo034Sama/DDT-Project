@@ -33,12 +33,12 @@ interface UploadedSlot {
 }
 
 const slotConfigs = [
-  { id: 1, label: "Front View", helper: "Capture the primary perimeter entrance or main structural facade cleanly.", required: true },
-  { id: 2, label: "Overview", helper: "Step back to secure a wide-angle reference composition of the active workspace.", required: true },
-  { id: 3, label: "Test Process", helper: "Photograph the equipment configuration, NDT calibration setups, or active testing.", required: true },
-  { id: 4, label: "Group Picture", helper: "Secure an operational group image of onsite personnel for compliance verification.", required: true },
-  { id: 5, label: "Additional Evidence A", helper: "Supplementary detail shot documenting structural variances or technical anomalies.", required: false },
-  { id: 6, label: "Additional Evidence B", helper: "Supplementary detail shot documenting structural variances or technical anomalies.", required: false },
+  { id: 1, label: "Front View", type: "FRONT_VIEW", helper: "Capture the primary perimeter entrance or main structural facade cleanly.", required: true },
+  { id: 2, label: "Overview", type: "OVERVIEW", helper: "Step back to secure a wide-angle reference composition of the active workspace.", required: true },
+  { id: 3, label: "Test Process", type: "TEST_PROCESS", helper: "Photograph the equipment configuration, NDT calibration setups, or active testing.", required: true },
+  { id: 4, label: "Group Picture", type: "GROUP_PICTURE", helper: "Secure an operational group image of onsite personnel for compliance verification.", required: true },
+  { id: 5, label: "Site Location", type: "SITE_LOCATION", helper: "Capture the official site coordinate board, project billboard, or gate signage.", required: true },
+  { id: 6, label: "Additional Evidence", type: "ADDITIONAL_EVIDENCE", helper: "Supplementary detail shot documenting structural variances or technical anomalies.", required: false },
 ];
 
 export function InspectionCompletionModal({
@@ -166,13 +166,14 @@ export function InspectionCompletionModal({
     setCompressing(true);
     try {
       const base64Data = await compressImage(file);
-      const label = slotConfigs.find((c) => c.id === activeSlotId)?.label || "Evidence";
+      const config = slotConfigs.find((c) => c.id === activeSlotId);
+      const type = config?.type || "ADDITIONAL_EVIDENCE";
       
       setSlots((prev) => ({
         ...prev,
         [activeSlotId]: {
           url: base64Data,
-          type: label,
+          type: type,
           capturedAt: new Date().toISOString(),
         },
       }));
@@ -197,9 +198,19 @@ export function InspectionCompletionModal({
     }));
   };
 
-  const isNotesValid = fieldNotes.trim().length > 0;
-  const isImagesValid = !!slots[1] && !!slots[2] && !!slots[3] && !!slots[4];
-  const isValid = isNotesValid && isImagesValid;
+  const uploadedImages = Object.values(slots).filter((val): val is UploadedSlot => val !== null);
+
+  // Updated DDT 1.1 Validation Gate
+  const isSubmissionReady = 
+    fieldNotes.trim().length > 10 && 
+    uploadedImages.some(img => img.type === 'FRONT_VIEW') &&
+    uploadedImages.some(img => img.type === 'OVERVIEW') &&
+    uploadedImages.some(img => img.type === 'TEST_PROCESS') &&
+    uploadedImages.some(img => img.type === 'GROUP_PICTURE') &&
+    uploadedImages.some(img => img.type === 'SITE_LOCATION'); // New validation enforcement
+
+  const isNotesValid = fieldNotes.trim().length > 10;
+  const isValid = isSubmissionReady;
 
   const handleSubmitClick = () => {
     if (!isValid) return;
@@ -253,7 +264,7 @@ export function InspectionCompletionModal({
               <Label htmlFor="field-notes" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider flex items-center justify-between">
                 <span>Technical Field Observations *</span>
                 {!isNotesValid && (
-                  <span className="text-[10px] text-red-400 normal-case font-medium">Notes are mandatory</span>
+                  <span className="text-[10px] text-red-400 normal-case font-medium">Min 11 characters required</span>
                 )}
               </Label>
               <textarea
@@ -270,7 +281,7 @@ export function InspectionCompletionModal({
             {/* Media Matrix Upload Grid */}
             <div className="space-y-3">
               <Label className="text-xs font-semibold text-ddt-muted uppercase tracking-wider block">
-                Classified Image Grid Matrix * (Slots 1–4 Mandatory)
+                Classified Image Grid Matrix * (Slots 1–5 Mandatory)
               </Label>
 
               <div className="grid grid-cols-2 gap-4">
