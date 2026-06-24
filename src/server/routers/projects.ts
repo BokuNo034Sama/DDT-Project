@@ -428,7 +428,7 @@ export const projectsRouter = router({
       const { id } = input;
       const { supabase, tenantId } = ctx;
 
-      console.log(`[DEBUG DELETION] Initiating purge for Project: ${id} under Tenant: ${tenantId}`);
+      console.log(`[DATABASE PURGE] Executing coercion bypass for project ID: ${id}`);
 
       try {
         // 1. Double-check item existence & tenant matching before executing drops
@@ -496,31 +496,30 @@ export const projectsRouter = router({
           .eq("tenant_id", tenantId);
         if (err7) throw err7;
 
-        // 3. Purge the parent project row
-        const { data: deletedProject, error: deleteError } = await supabase
+        // 3. Purge the parent project row using a flat select query to bypass single-row coercion
+        const { data: deletedProjects, error: deleteError } = await supabase
           .from("projects")
           .delete()
           .eq("id", id)
           .eq("tenant_id", tenantId)
-          .select("id")
-          .single();
+          .select("id");
 
         if (deleteError) {
           throw deleteError;
         }
 
-        console.log(`[DEBUG DELETION] Successfully removed project from DB:`, deletedProject.id);
-        return { success: true, deletedId: deletedProject.id };
+        const count = deletedProjects?.length || 0;
+        console.log(`[DATABASE PURGE] Success. Rows dropped: ${count}`);
+        return { success: true, count: count };
 
       } catch (error: any) {
-        console.error("[CRITICAL DELETION FAILURE BT]:", error);
+        console.error("[CRITICAL TRANS TRANSACTION CRASH]:", error);
         
         if (error instanceof TRPCError) throw error;
 
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: `Database block: ${error.message || "Foreign key constraint failure."}`,
-          cause: error,
+          message: `Database block execution abort: ${error.message || "Cascade failed"}`,
         });
       }
     }),
