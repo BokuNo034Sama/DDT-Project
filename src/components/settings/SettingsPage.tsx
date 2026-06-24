@@ -433,7 +433,7 @@ export function SettingsPage() {
               {tenant?.subscription_status === "active" ? (
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <p>
-                    Your workspace is active. You have full access to unlimited NDT reports, staff dashboards, performance metrics, and the AI Structural Proofreader.
+                    Your workspace is active. You have full access to unlimited NDT reports, staff dashboards, performance metrics, and the Proofread Bot.
                   </p>
                   {isLabOwner && (
                     <Button
@@ -568,7 +568,7 @@ export function SettingsPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />
-                      <span>V3 document error detection</span>
+                      <span>Proofread Bot document error detection</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-ddt-accent" />

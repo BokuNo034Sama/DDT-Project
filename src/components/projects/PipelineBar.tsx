@@ -101,7 +101,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
     },
     {
       id: "proofreading" as const,
-      label: "Proofreading",
+      label: "Proofread Bot",
       icon: FileCheck,
       managerOnly: true,
     },

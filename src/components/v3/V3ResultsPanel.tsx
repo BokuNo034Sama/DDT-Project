@@ -22,7 +22,7 @@ export function V3ResultsPanel({ results }: V3ResultsPanelProps) {
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
       <div className="bg-ddt-bg p-4 rounded-xl border border-ddt-border">
-        <h3 className="font-syne font-bold text-lg text-ddt-accent mb-4">V3 AI Analysis Results</h3>
+        <h3 className="font-syne font-bold text-lg text-ddt-accent mb-4">Proofread Bot Results</h3>
         
         <div className="space-y-4">
           {categories.map(({ key, label }) => {

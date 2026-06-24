@@ -85,7 +85,7 @@ export function ProofReviewModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to run AI scan");
+        throw new Error(data.error || "Failed to run Proofread Bot Scan");
       }
 
       setAiResults(data.results_json || data); // The API route currently returns { success, checkId, score } but we should fetch the record or return results.
@@ -93,7 +93,7 @@ export function ProofReviewModal({
       // I'll update the API route to return results_json so we don't have to fetch it.
       // Wait, let's fix the API to return results_json directly.
     } catch (error: any) {
-      toast({ title: "AI Scan Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Proofread Bot Scan Failed", description: error.message, variant: "destructive" });
     } finally {
       setAiScanning(false);
     }
@@ -172,11 +172,11 @@ export function ProofReviewModal({
             </button>
           </div>
 
-          {/* V3 AI Scanner */}
+          {/* Proofread Bot Scanner */}
           <div className="bg-ddt-input border border-ddt-border rounded-xl p-4 space-y-4">
             <div>
               <Label className="text-ddt-accent font-syne font-bold flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4" /> AI Compliance Engine
+                <Sparkles className="w-4 h-4" /> Proofread Bot Scan
               </Label>
               <p className="text-xs text-ddt-muted mb-3">Scan your drafted document against active LSMTL regulatory frameworks to capture technical discrepancies instantly.</p>
               
@@ -198,7 +198,7 @@ export function ProofReviewModal({
                   disabled={!selectedFile || aiScanning}
                   className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-full"
                 >
-                  {aiScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Scan"}
+                  {aiScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Run Proofread Bot"}
                 </Button>
               </div>
             </div>

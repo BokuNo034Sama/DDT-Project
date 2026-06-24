@@ -16,7 +16,7 @@ export function FeaturesSection() {
       className: "lg:col-span-2",
     },
     {
-      title: "AI Proofreader",
+      title: "Proofread Bot",
       description: "LSMTL guideline checking powered by Claude AI. Automatically flag boilerplate omissions and structural inconsistencies.",
       icon: Brain,
       className: "lg:col-span-1",

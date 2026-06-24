@@ -16,7 +16,7 @@ export function PricingSection() {
     "Up to 50 staff members",
     "AI-powered report proofreading",
     "LSMTL guideline compliance checks",
-    "V3 document error detection",
+    "Proofread Bot document error detection",
     "Minor error auto-correction",
     "Priority support",
     "Advanced performance analytics",
