@@ -55,13 +55,18 @@ export const stagesRouter = router({
         is_team_leader,
         started_at,
         completed_at,
+        staff_id,
         project:projects (
           id,
           ndt_code,
           client_name,
           status,
           address,
-          site_date
+          site_date,
+          site_visit_logs (
+            manager_instruction_note,
+            team_lead_id
+          )
         )
       `)
       .eq("staff_id", ctx.userId)
@@ -74,20 +79,33 @@ export const stagesRouter = router({
     }
 
     // Format visits to align with the task card component
-    const formattedVisits = (visits || []).map((v: any) => ({
-      id: v.id,
-      project_id: v.project_id,
-      stage: "site_visit" as const,
-      status: v.status,
-      assigned_at: v.visit_date,
-      visit_date: v.visit_date,
-      is_team_leader: v.is_team_leader,
-      started_at: v.started_at,
-      completed_at: v.completed_at,
-      project: v.project,
-      task_type: "site_visit" as const,
-      assigned_by_user: null,
-    }));
+    const formattedVisits = (visits || []).map((v: any) => {
+      const matchedLog = v.project?.site_visit_logs?.find(
+        (l: any) => l.team_lead_id === v.staff_id
+      );
+
+      return {
+        id: v.id,
+        project_id: v.project_id,
+        stage: "site_visit" as const,
+        status: v.status,
+        assigned_at: v.visit_date,
+        visit_date: v.visit_date,
+        is_team_leader: v.is_team_leader,
+        started_at: v.started_at,
+        completed_at: v.completed_at,
+        project: {
+          id: v.project?.id,
+          ndt_code: v.project?.ndt_code,
+          client_name: v.project?.client_name,
+          status: v.project?.status,
+          address: v.project?.address,
+        },
+        task_type: "site_visit" as const,
+        assigned_by_user: null,
+        manager_instruction_note: matchedLog?.manager_instruction_note || null,
+      };
+    });
 
     const formattedStages = (assignments || []).map((s: any) => ({
       ...s,

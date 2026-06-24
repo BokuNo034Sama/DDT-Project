@@ -215,82 +215,83 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
               const hasInstruction = !!matchedLog?.manager_instruction_note;
               const instructionText = matchedLog?.manager_instruction_note || "";
 
+              const avatarInitials = initials;
+              const isTeamLead = visit.is_team_leader;
+              const TrashIcon = Trash2;
+              const formattedDate = new Date(visit.visit_date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+              const floorCount = visit.number_of_floors || 0;
+
               return (
                 <div
                   key={visit.id}
-                  className="flex items-center justify-between gap-4 p-3 bg-ddt-input border border-ddt-border/50 rounded-lg hover:border-ddt-border transition-all duration-200"
+                  className="relative w-full p-4 border border-slate-800 bg-[#0d1527] hover:border-slate-700 transition-colors flex flex-col space-y-3 rounded-xl"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <UserPill name={staffName} avatarInitials={initials} className="bg-ddt-raised shrink-0" />
-                    
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ddt-muted font-mono">
-                        <span className="whitespace-nowrap">
-                          {new Date(visit.visit_date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "2-digit",
-                          })}
-                        </span>
-                        {visit.number_of_floors !== null && (
-                          <span className="flex items-center gap-1 text-[10px] bg-ddt-accent-bg border border-ddt-accent/15 text-ddt-accent px-1.5 py-0.5 rounded leading-none">
-                            <Layers className="w-3 h-3" />
-                            <span>{visit.number_of_floors} F</span>
-                          </span>
-                        )}
-                        {visit.is_team_leader && (
-                          <span className="text-[9px] bg-ddt-accent/10 border border-ddt-accent/30 text-ddt-accent px-1 py-0.5 rounded leading-none font-bold uppercase font-mono tracking-wider">
-                            Team Lead
+                  {/* HEADER ROW: Identity Grouping & Fixed Actions */}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-3">
+                      {/* User Avatar */}
+                      <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs uppercase border border-blue-500/30">
+                        {avatarInitials}
+                      </div>
+                      {/* Name and Role Cluster */}
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-white tracking-wide">{staffName}</span>
+                        {isTeamLead && (
+                          <span className="inline-block text-[10px] uppercase tracking-wider font-bold text-sky-400 mt-0.5">
+                            ✦ Team Leader
                           </span>
                         )}
                       </div>
-
-                      {/* Instruction Display */}
-                      {visit.is_team_leader && (
-                        <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-ddt-muted">
-                          {hasInstruction ? (
-                            <div className="flex items-start gap-1 bg-ddt-input border border-ddt-border/30 rounded p-1.5 max-w-[240px]">
-                              <FileText className="w-3.5 h-3.5 text-ddt-accent shrink-0 mt-0.5" />
-                              <span className="leading-normal line-clamp-2" title={instructionText}>
-                                {instructionText}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-ddt-faint italic">No instructions set</span>
-                          )}
-
-                          {isManager && (visit.status === "pending" || visit.status === "in_progress") && (
-                            <button
-                              onClick={() => handleOpenEditInstruction(instructionText)}
-                              className="text-ddt-accent hover:underline text-[10px] font-mono leading-none focus:outline-none w-fit mt-0.5"
-                            >
-                              {hasInstruction ? "Edit Instruction" : "+ Add Instruction"}
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
+
+                    {/* Fixed Action Anchor */}
+                    {isManager && (
+                      <button
+                        onClick={() => handleDelete(visit.id)}
+                        disabled={deletingId === visit.id || !isOnline}
+                        className={cn(
+                          "p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all absolute top-3 right-3",
+                          (!isOnline || deletingId === visit.id) && "opacity-55 cursor-not-allowed"
+                        )}
+                        title="Delete Site Visit"
+                      >
+                        {deletingId === visit.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                        ) : (
+                          <TrashIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
 
-                  {isManager && (
-                    <button
-                      onClick={() => handleDelete(visit.id)}
-                      disabled={deletingId === visit.id || !isOnline}
-                      className={cn(
-                        "p-1.5 rounded transition-all duration-150 shrink-0",
-                        isOnline
-                          ? "text-ddt-faint hover:text-red-400 hover:bg-red-400/5"
-                          : "text-ddt-faint opacity-55 cursor-not-allowed"
-                      )}
-                      title="Delete log"
-                    >
-                      {deletingId === visit.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
-                      ) : (
-                        <Trash2 className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  )}
+                  {/* METADATA STRIP: Structural Parameters & Scheduling */}
+                  <div className="flex items-center space-x-3 pt-1 border-t border-slate-800/60 w-full text-xs text-slate-400">
+                    <span className="font-medium text-slate-300">{formattedDate}</span>
+                    <span className="text-slate-600">•</span>
+                    {/* Floor Target Badge */}
+                    <span className="bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 text-[10px] uppercase tracking-wider">
+                      {floorCount} Floors
+                    </span>
+                  </div>
+
+                  {/* CONTEXT CALLOUT: Management Directives */}
+                  <div className="text-xs text-slate-500 italic bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 w-full flex flex-col gap-1.5">
+                    <span className="leading-normal">
+                      {instructionText || "No custom deployment instructions specified by management."}
+                    </span>
+                    {isManager && visit.is_team_leader && (visit.status === "pending" || visit.status === "in_progress") && (
+                      <button
+                        onClick={() => handleOpenEditInstruction(instructionText)}
+                        className="text-ddt-accent hover:underline text-[10px] font-mono leading-none focus:outline-none w-fit mt-1 not-italic"
+                      >
+                        {hasInstruction ? "Edit Instruction" : "+ Add Instruction"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}

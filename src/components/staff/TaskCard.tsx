@@ -30,6 +30,7 @@ interface TaskCardProps {
     task_type?: "stage" | "site_visit";
     started_at?: string | null;
     completed_at?: string | null;
+    manager_instruction_note?: string | null;
     project: {
       id: string;
       ndt_code: string;
@@ -50,6 +51,10 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
   const { toast } = useToast();
   const utils = trpc.useUtils();
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
+
+  const log = {
+    manager_instruction_note: assignment.manager_instruction_note,
+  };
 
   const startMutation = trpc.stages.start.useMutation({
     onSuccess: () => {
@@ -227,27 +232,47 @@ export function TaskCard({ assignment, onSuccess }: TaskCardProps) {
           </div>
 
           {isSiteVisit && (
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-ddt-border/10 mt-1">
-              <div>
-                <span className="text-[10px] text-ddt-muted uppercase tracking-wider font-mono block">
-                  Role
-                </span>
-                <span className={cn(
-                  "text-xs font-bold font-mono px-2 py-0.5 rounded border block w-fit",
-                  isTeamLeader
-                    ? "bg-ddt-accent/10 border-ddt-accent/25 text-ddt-accent"
-                    : "bg-ddt-raised border-ddt-border text-ddt-muted"
-                )}>
-                  {isTeamLeader ? "★ Team Leader" : "Attending Staff"}
+            <>
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-ddt-border/10 mt-1">
+                <div>
+                  <span className="text-[10px] text-ddt-muted uppercase tracking-wider font-mono block">
+                    Role
+                  </span>
+                  <span className={cn(
+                    "text-xs font-bold font-mono px-2 py-0.5 rounded border block w-fit",
+                    isTeamLeader
+                      ? "bg-ddt-accent/10 border-ddt-accent/25 text-ddt-accent"
+                      : "bg-ddt-raised border-ddt-border text-ddt-muted"
+                  )}>
+                    {isTeamLeader ? "★ Team Leader" : "Attending Staff"}
+                  </span>
+                </div>
+                <span className="text-[10px] text-ddt-muted font-mono self-end">
+                  Scheduled: {new Date(assignment.visit_date!).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </span>
               </div>
-              <span className="text-[10px] text-ddt-muted font-mono self-end">
-                Scheduled: {new Date(assignment.visit_date!).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
+
+              {/* MANAGER DIRECTIVE CALLOUT - Visible throughout the inspection lifecycle */}
+              {log.manager_instruction_note ? (
+                <div className="mt-3 p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl flex flex-col space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                    📋 Manager's Site Instructions:
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed font-mono italic">
+                    "{log.manager_instruction_note}"
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 p-3 bg-slate-900/40 border border-slate-800/40 rounded-xl">
+                  <p className="text-xs text-slate-500 font-mono italic">
+                    No specific deployment instructions attached by management.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {!isSiteVisit && assignment.assigned_by_user && (
