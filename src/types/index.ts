@@ -71,3 +71,40 @@ export interface ReportCheck {
   results_json?: ReportCheckResult;
   error_message?: string;
 }
+
+export type ReportDraft = Database["public"]["Tables"]["report_drafts"]["Row"];
+
+export interface RebarMeasurements {
+  column: { mainBar: number; links: number; spacing: number; coverDepth: number }
+  beam:   { mainBar: number; links: number; spacing: number; coverDepth: number }
+  slab:   { mainBar: number; links: number; spacing: number; coverDepth: number }
+}
+
+export interface ExcelFloorData {
+  floorName: string      // e.g. "Ground Floor", "First Floor"
+  sheetKey: string       // e.g. "Gf", "FF"
+  columns: ElementData[]
+  beams: ElementData[]
+  slabs: ElementData[]
+  shearWalls: ElementData[]
+}
+
+export interface ElementData {
+  elementId: string       // e.g. "C1", "B2", "S3"
+  trials: {
+    trial: 'A' | 'B' | 'C'
+    transmissionTime: number
+    pathLength: number
+    velocity: number
+    ecs: number
+  }[]
+  averageEcs: number
+  remark: string          // "GOOD" or "POOR"
+}
+
+export interface ReportDraftInput {
+  projectId: string
+  concreteGrade: string
+  drawingProvided: boolean
+  rebarData: RebarMeasurements
+}

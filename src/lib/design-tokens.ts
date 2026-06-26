@@ -4,6 +4,7 @@ export type ProjectStatus =
   | "analysis_done"
   | "sketch_done"
   | "report_done"
+  | "report_bot_draft"
   | "proof_ready"
   | "report_uploaded"
   | "report_verified"
@@ -38,6 +39,11 @@ export const STATUS_CHIP_STYLES: Record<
     bg: "var(--status-report-done-bg)",
     text: "var(--status-report-done-text)",
     border: "var(--status-report-done-border)",
+  },
+  report_bot_draft: {
+    bg: "#0A1E38",
+    text: "#70AEFF",
+    border: "#1E3A5F",
   },
   proof_ready: {
     bg: "var(--status-proof-ready-bg)",

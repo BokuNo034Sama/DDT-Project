@@ -20,12 +20,15 @@ import {
   PlusCircle,
   HelpCircle,
   Loader2,
+  Sparkles,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useToast } from "@/hooks/use-toast";
 
 import { ProjectWithRelations } from "@/types";
+import { STATUS_ORDER } from "@/lib/status-transitions";
 
 interface PipelineBarProps {
   project: ProjectWithRelations;
@@ -46,6 +49,11 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
   // Get active staff members in the tenant for reassigning dropdown
   const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+
+  const { data: draft } = trpc.reportBot.getDraftByProject.useQuery(
+    { projectId: project.id },
+    { enabled: !!project.id }
+  );
 
   const reassignMutation = trpc.tasks.reassignTask.useMutation({
     onSuccess: async () => {
@@ -100,6 +108,12 @@ export function PipelineBar({ project }: PipelineBarProps) {
       icon: FileText,
     },
     {
+      id: "report_bot" as const,
+      label: "Report Bot",
+      icon: Sparkles,
+      managerOnly: true,
+    },
+    {
       id: "proofreading" as const,
       label: "Proofread Bot",
       icon: FileCheck,
@@ -109,9 +123,11 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
   // Helper to determine active stage
   const getStageStatus = (stageId: string, assignment: any) => {
-    if (assignment?.status === "completed") return "completed";
-    if (assignment?.status === "failed") return "failed";
-    if (assignment?.status === "in_progress") return "in_progress";
+    if (stageId !== "report_bot") {
+      if (assignment?.status === "completed") return "completed";
+      if (assignment?.status === "failed") return "failed";
+      if (assignment?.status === "in_progress") return "in_progress";
+    }
     
     // Auto-compute active/next stage in the pipeline if status not set explicitly
     const status = project.status;
@@ -128,8 +144,23 @@ export function PipelineBar({ project }: PipelineBarProps) {
       if (status === "sketch_done") return "active";
       return "pending";
     }
+    if (stageId === "report_bot") {
+      if (status === "report_done") {
+        if (draft?.status === "generating") return "in_progress";
+        return "active";
+      }
+      if (status === "report_bot_draft") return "in_progress";
+      
+      const orderIdx = STATUS_ORDER.indexOf(status || "not_started");
+      const proofReadyIdx = STATUS_ORDER.indexOf("proof_ready");
+      if (orderIdx >= proofReadyIdx) return "completed";
+      return "pending";
+    }
     if (stageId === "proofreading") {
-      if (status === "report_done" || status === "proof_ready") return "active";
+      if (status === "proof_ready") return "active";
+      const orderIdx = STATUS_ORDER.indexOf(status || "not_started");
+      const uploadedIdx = STATUS_ORDER.indexOf("report_uploaded");
+      if (orderIdx >= uploadedIdx) return "completed";
       return "pending";
     }
     
@@ -139,6 +170,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
   const getStageDisplayStatus = (stageId: string, assignment: any) => {
     const calculated = getStageStatus(stageId, assignment);
     if (assignment?.status) return assignment.status;
+    if (stageId === "report_bot") return calculated;
     return calculated === "active" ? "in_progress" : "pending";
   };
 
@@ -163,18 +195,18 @@ export function PipelineBar({ project }: PipelineBarProps) {
               </span>
             )}
           </div>
-          {(project.status === "report_done" || project.status === "proof_ready") && isManager && (
+          {project.status === "proof_ready" && isManager && (
             <Button
               onClick={() => setIsProofOpen(true)}
               className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded shadow-sm shadow-ddt-lime/10 transition-all duration-200"
             >
-              Submit Proofread
+              Send to Proofread Bot
             </Button>
           )}
         </div>
 
-        {/* 4-Stage Horizontal/Vertical Pipeline */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative">
+        {/* 5-Stage Horizontal/Vertical Pipeline */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 relative">
           {stagesConfig.map((stage, index) => {
             const assignment = project.project_stage_assignments?.find((a) => a.stage === stage.id);
             const displayStatus = getStageDisplayStatus(stage.id, assignment);
@@ -202,6 +234,34 @@ export function PipelineBar({ project }: PipelineBarProps) {
               glowClass = "shadow-lg shadow-ddt-accent/5 ring-1 ring-ddt-accent/30";
               statusIcon = <Loader2 className="w-4 h-4 text-ddt-accent animate-spin" />;
               statusLabel = "In Progress";
+            }
+
+            if (stage.id === "report_bot") {
+              if (displayStatus === "active") {
+                borderClass = "border-ddt-accent/60 bg-ddt-accent/5";
+                glowClass = "shadow-lg shadow-ddt-accent/5 ring-1 ring-ddt-accent/30";
+                statusIcon = <Clock className="w-4 h-4 text-ddt-accent" />;
+                statusLabel = "Draft Pending";
+              } else if (displayStatus === "in_progress") {
+                if (draft?.status === "generating") {
+                  borderClass = "border-ddt-accent bg-ddt-accent/5";
+                  glowClass = "shadow-lg shadow-ddt-accent/10 ring-1 ring-ddt-accent";
+                  statusIcon = <Loader2 className="w-4 h-4 text-ddt-accent animate-spin" />;
+                  statusLabel = "Writing Draft...";
+                } else {
+                  borderClass = "border-amber-500/40 bg-amber-950/5";
+                  statusIcon = <Clock className="w-4 h-4 text-amber-400" />;
+                  statusLabel = "Staff Editing";
+                }
+              } else if (displayStatus === "completed") {
+                borderClass = "border-emerald-500/40 bg-emerald-950/5";
+                statusIcon = <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+                statusLabel = "Completed";
+              } else {
+                borderClass = "border-ddt-border";
+                statusIcon = <Clock className="w-4 h-4 text-ddt-faint" />;
+                statusLabel = "Awaiting Start";
+              }
             }
 
             return (
@@ -244,94 +304,189 @@ export function PipelineBar({ project }: PipelineBarProps) {
                 </div>
 
                 {/* Assignee Section */}
-                <div className="my-4">
-                  {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <UserPill
-                          name={assignment.assigned_user?.full_name || "Assigned Technician"}
-                          avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")
-                             .substring(0, 2)}
-                        />
-                      </div>
-
-                      {isManager && (
-                        <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
-                          {/* Reassign dropdown triggering */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
-                              disabled={!isOnline || reassignMutation.isPending}
-                              className={cn(
-                                "w-full flex items-center justify-center space-x-2 py-2 px-4 border border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-medium text-slate-300 transition-all group",
-                                (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              {reassignMutation.isPending && activeReassignId === assignment.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                <div className="my-4 flex-1 flex flex-col justify-center">
+                  {stage.id === "report_bot" ? (
+                    <div className="space-y-2">
+                      {project.status === "report_done" && (
+                        <>
+                          {draft?.status === "generating" ? (
+                            <div className="flex items-center gap-2 text-xs text-ddt-muted animate-pulse">
+                              <Loader2 className="w-3.5 h-3.5 text-ddt-accent animate-spin" />
+                              <span>Report Bot is writing your report...</span>
+                            </div>
+                          ) : (
+                            <>
+                              {draft?.status === "draft_ready" ? (
+                                <div className="space-y-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#0A2018] text-[#50D898] border border-[#0F4A2A]">
+                                    Draft Ready
+                                  </span>
+                                  <a
+                                    href={`/api/v4/download-draft?draftId=${draft.id}`}
+                                    download
+                                    className="flex items-center justify-center gap-1.5 py-1.5 px-3 border border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-semibold text-slate-300 transition-all"
+                                  >
+                                    <Download className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Download Draft</span>
+                                  </a>
+                                </div>
                               ) : (
-                                <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+                                <>
+                                  {isManager ? (
+                                    <Button
+                                      onClick={() => {
+                                        const el = document.getElementById("report-bot-panel");
+                                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                                      }}
+                                      className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
+                                    >
+                                      Generate Report Draft
+                                    </Button>
+                                  ) : (
+                                    <span className="text-xs text-ddt-faint italic font-medium">Awaiting draft generation</span>
+                                  )}
+                                </>
                               )}
-                              <span>Reassign Staff</span>
-                            </button>
+                            </>
+                          )}
+                        </>
+                      )}
 
-                            {activeReassignId === assignment.id && (
-                              <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                                {loadingStaff ? (
-                                  <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
-                                    <span>Loading staff...</span>
-                                  </div>
-                                ) : (
-                                  staffList
-                                    ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
-                                    .map((member: any) => (
-                                      <button
-                                        key={member.id}
-                                        onClick={() => {
-                                          reassignMutation.mutate({
-                                            taskId: assignment.id,
-                                            newStaffId: member.id,
-                                          });
-                                        }}
-                                        className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
-                                      >
-                                        {member.full_name}
-                                      </button>
-                                    ))
-                                )}
-                              </div>
-                            )}
-                          </div>
+                      {project.status === "report_bot_draft" && (
+                        <div className="space-y-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#241A0A] text-[#F59E0B] border border-[#452A0F]">
+                            Staff Editing
+                          </span>
+                          {draft && (
+                            <a
+                              href={`/api/v4/download-draft?draftId=${draft.id}`}
+                              download
+                              className="flex items-center justify-center gap-1.5 py-1.5 px-3 border border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-semibold text-slate-300 transition-all"
+                            >
+                              <Download className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Download Draft</span>
+                            </a>
+                          )}
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    <div>
-                      {isManager ? (
-                        <Button
-                          onClick={() => isOnline && setAssignStage(stage.id)}
-                          disabled={!isOnline}
-                          className={cn(
-                            "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
-                            isOnline
-                              ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
-                              : "cursor-not-allowed opacity-50 bg-ddt-input"
+
+                      {project.status === "proof_ready" && (
+                        <>
+                          {isManager ? (
+                            <Button
+                              onClick={() => setIsProofOpen(true)}
+                              className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
+                            >
+                              Send to Proofread Bot
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-emerald-400 font-semibold">Ready for proofreading</span>
                           )}
-                        >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          <span>Assign Staff</span>
-                        </Button>
-                      ) : (
+                        </>
+                      )}
+
+                      {STATUS_ORDER.indexOf(project.status || "not_started") > STATUS_ORDER.indexOf("proof_ready") && (
+                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Completed</span>
+                        </span>
+                      )}
+
+                      {STATUS_ORDER.indexOf(project.status || "not_started") < STATUS_ORDER.indexOf("report_done") && (
                         <span className="text-xs text-ddt-faint italic font-medium font-sans">
-                          Unassigned
+                          Awaiting previous stages
                         </span>
                       )}
                     </div>
+                  ) : (
+                    assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <UserPill
+                            name={assignment.assigned_user?.full_name || "Assigned Technician"}
+                            avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                               .substring(0, 2)}
+                          />
+                        </div>
+
+                        {isManager && (
+                          <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
+                            {/* Reassign dropdown triggering */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
+                                disabled={!isOnline || reassignMutation.isPending}
+                                className={cn(
+                                  "w-full flex items-center justify-center space-x-2 py-2 px-4 border border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-medium text-slate-300 transition-all group",
+                                  (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                {reassignMutation.isPending && activeReassignId === assignment.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                                ) : (
+                                  <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+                                )}
+                                <span>Reassign Staff</span>
+                              </button>
+
+                              {activeReassignId === assignment.id && (
+                                <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                                  {loadingStaff ? (
+                                    <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
+                                      <span>Loading staff...</span>
+                                    </div>
+                                  ) : (
+                                    staffList
+                                      ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
+                                      .map((member: any) => (
+                                        <button
+                                          key={member.id}
+                                          onClick={() => {
+                                            reassignMutation.mutate({
+                                              taskId: assignment.id,
+                                              newStaffId: member.id,
+                                            });
+                                          }}
+                                          className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
+                                        >
+                                          {member.full_name}
+                                        </button>
+                                      ))
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        {isManager ? (
+                          <Button
+                            onClick={() => isOnline && setAssignStage(stage.id)}
+                            disabled={!isOnline}
+                            className={cn(
+                              "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
+                              isOnline
+                                ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
+                                : "cursor-not-allowed opacity-50 bg-ddt-input"
+                            )}
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Assign Staff</span>
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-ddt-faint italic font-medium font-sans">
+                            Unassigned
+                          </span>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
 

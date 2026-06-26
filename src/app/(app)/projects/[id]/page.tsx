@@ -13,11 +13,16 @@ import { TopBar } from "@/components/layout/TopBar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { ReportBotPanel } from "@/components/v4/ReportBotPanel";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const isOnline = useNetworkStatus();
   const [activeTab, setActiveTab] = useState<"history" | "inspections">("history");
+  
+  const { data: me } = trpc.staff.getMe.useQuery();
+  const role = me?.role;
+  const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
   const { data: project, isLoading, error } = trpc.projects.getById.useQuery(
     { id },
     {
@@ -78,6 +83,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
       {/* Pipeline visualization & assignments & proof logs */}
       <PipelineBar project={project} />
+
+      {/* Render ReportBotPanel when manager and status is report_done */}
+      {isManager && project.status === "report_done" && (
+        <div id="report-bot-panel">
+          <ReportBotPanel project={project} />
+        </div>
+      )}
 
       {/* Detailed site logs and history timeline grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">

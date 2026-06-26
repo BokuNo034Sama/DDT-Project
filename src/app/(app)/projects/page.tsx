@@ -104,7 +104,7 @@ export default function ProjectsPage() {
                       {new Date(project.site_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusChip status={project.status as "not_started" | "wip" | "analysis_done" | "sketch_done" | "report_done" | "proof_ready" | "report_uploaded"} />
+                      <StatusChip status={project.status as "not_started" | "wip" | "analysis_done" | "sketch_done" | "report_done" | "report_bot_draft" | "proof_ready" | "report_uploaded"} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link

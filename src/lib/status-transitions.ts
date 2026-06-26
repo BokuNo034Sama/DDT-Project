@@ -6,6 +6,7 @@ export const STATUS_ORDER: ProjectStatus[] = [
   "analysis_done",
   "sketch_done",
   "report_done",
+  "report_bot_draft",
   "proof_ready",
   "report_uploaded",
   "report_verified",

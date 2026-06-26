@@ -10,6 +10,7 @@ import { searchRouter } from "./search";
 import { adminRouter } from "./admin";
 import { settingsRouter } from "./settings";
 import { tasksRouter } from "./tasks";
+import { reportBotRouter } from "./reportBot";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   admin: adminRouter,
   settings: settingsRouter,
   tasks: tasksRouter,
+  reportBot: reportBotRouter,
 });
 
 export type AppRouter = typeof appRouter;

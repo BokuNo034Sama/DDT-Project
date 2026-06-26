@@ -93,6 +93,7 @@ export interface Database {
             | "analysis_done"
             | "sketch_done"
             | "report_done"
+            | "report_bot_draft"
             | "proof_ready"
             | "report_uploaded"
             | "report_verified"
@@ -121,6 +122,7 @@ export interface Database {
             | "analysis_done"
             | "sketch_done"
             | "report_done"
+            | "report_bot_draft"
             | "proof_ready"
             | "report_uploaded"
             | "report_verified"
@@ -149,6 +151,7 @@ export interface Database {
             | "analysis_done"
             | "sketch_done"
             | "report_done"
+            | "report_bot_draft"
             | "proof_ready"
             | "report_uploaded"
             | "report_verified"
@@ -454,6 +457,59 @@ export interface Database {
           updated_at?: string;
         };
       };
+      report_drafts: {
+        Row: {
+          id: string;
+          project_id: string;
+          tenant_id: string;
+          generated_by: string;
+          generated_at: string;
+          concrete_grade: string;
+          drawing_provided: boolean;
+          excel_data: Json;
+          rebar_data: Json;
+          draft_filename: string | null;
+          storage_path: string | null;
+          status: "generating" | "draft_ready" | "staff_editing" | "ready_for_proofread" | "sent_to_proofread";
+          iteration: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          tenant_id: string;
+          generated_by: string;
+          generated_at?: string;
+          concrete_grade?: string;
+          drawing_provided?: boolean;
+          excel_data?: Json;
+          rebar_data?: Json;
+          draft_filename?: string | null;
+          storage_path?: string | null;
+          status?: "generating" | "draft_ready" | "staff_editing" | "ready_for_proofread" | "sent_to_proofread";
+          iteration?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          tenant_id?: string;
+          generated_by?: string;
+          generated_at?: string;
+          concrete_grade?: string;
+          drawing_provided?: boolean;
+          excel_data?: Json;
+          rebar_data?: Json;
+          draft_filename?: string | null;
+          storage_path?: string | null;
+          status?: "generating" | "draft_ready" | "staff_editing" | "ready_for_proofread" | "sent_to_proofread";
+          iteration?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -482,6 +538,7 @@ export interface Database {
         | "analysis_done"
         | "sketch_done"
         | "report_done"
+        | "report_bot_draft"
         | "proof_ready"
         | "report_uploaded"
         | "report_verified"
