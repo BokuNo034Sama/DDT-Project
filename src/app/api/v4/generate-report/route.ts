@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     let rebarData: RebarMeasurements;
     try {
       rebarData = JSON.parse(rebarDataRaw);
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: "Invalid rebarData JSON format" }, { status: 400 });
     }
 
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     // Fetch site visits with staff names
     const { data: siteVisits } = await adminClient
       .from("site_visits")
-      .select("is_team_leader, staff_user:users!site_visits_staff_id_fkey(id, full_name, role)")
+      .select("id, is_team_leader, staff_user:users!site_visits_staff_id_fkey(id, full_name, role)")
       .eq("project_id", projectId)
       .eq("tenant_id", tenantId);
 
@@ -97,13 +97,56 @@ export async function POST(req: NextRequest) {
       })
       .filter((u): u is { id: string; full_name: string; role: string } => u !== null && u !== undefined);
 
+    const visitIds = (siteVisits || []).map((sv: any) => sv.id).filter(Boolean);
+
+    // Read equipment data from form data or DB
+    const equipmentDataRaw = formData.get("equipmentChecks") as string || formData.get("equipmentData") as string;
+    let equipmentChecks: any[] = [];
+    if (equipmentDataRaw) {
+      try {
+        equipmentChecks = JSON.parse(equipmentDataRaw);
+      } catch {}
+    }
+
+    // Query from database if empty
+    if (equipmentChecks.length === 0 && visitIds.length > 0) {
+      const { data: eqChecks } = await adminClient
+        .from("site_visit_equipment")
+        .select("*, equipment:lab_equipment(*)")
+        .in("site_visit_id", visitIds);
+      
+      if (eqChecks) {
+        equipmentChecks = eqChecks.map((eq: any) => ({
+          id: eq.id,
+          siteVisitId: eq.site_visit_id,
+          equipmentId: eq.equipment_id,
+          transducerOk: eq.transducer_ok,
+          displayOk: eq.display_ok,
+          cablesOk: eq.cables_ok,
+          batteryStatus: eq.battery_status,
+          equipment: eq.equipment ? {
+            id: eq.equipment.id,
+            tenantId: eq.equipment.tenant_id,
+            equipmentName: eq.equipment.equipment_name,
+            serialNumber: eq.equipment.serial_number,
+            equipmentType: eq.equipment.equipment_type,
+            isActive: eq.equipment.is_active,
+            createdAt: eq.equipment.created_at,
+          } : undefined
+        }));
+      }
+    }
+
     // Run report engine
     const overallResult = getOverallResult(parsedExcel);
     const buildingState = (project.connection || '').toUpperCase().includes("CONSTRUCTION") || project.connection === "ONGOING CONSTRUCTION"
       ? "ONGOING CONSTRUCTION"
       : "AN EXISTING BUILDING";
 
-    const recommendationTemplate = generateRecommendation(buildingState, overallResult === 'mixed' ? '[DEFECTS]' : '[NO_DEFECTS]');
+    const startPage = 9 + project.number_of_floors;
+    const endPage = startPage + project.number_of_floors - 1;
+    const pageRange = project.number_of_floors === 1 ? `${startPage}` : `${startPage}-${endPage}`;
+    const recommendationTemplate = generateRecommendation(pageRange);
 
     let reportSections;
     try {
@@ -123,6 +166,7 @@ export async function POST(req: NextRequest) {
         excelData: parsedExcel,
         overallResult,
         recommendationTemplate,
+        equipmentChecks,
       });
     } catch (e: any) {
       console.error("Report engine execution error:", e);
@@ -166,6 +210,7 @@ export async function POST(req: NextRequest) {
         drawing_provided: drawingProvided,
         excel_data: parsedExcel as any,
         rebar_data: rebarData as any,
+        equipment_data: equipmentChecks as any,
         draft_filename: filename,
         storage_path: storagePath,
         status: "draft_ready",

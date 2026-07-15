@@ -1,10 +1,10 @@
 import {
   Document, Packer, Paragraph, Table, TableRow, TableCell,
-  TextRun, HeadingLevel, AlignmentType, BorderStyle,
-  WidthType, Header, PageBreak, VerticalAlign, VerticalMergeType
+  TextRun, HeadingLevel, AlignmentType,
+  WidthType, PageBreak, VerticalAlign, VerticalMergeType
 } from 'docx';
-import { RebarMeasurements, ExcelFloorData, ElementData } from '@/types';
-import { ReportSections, FrontPageData, StaffMember } from '@/types/v4';
+import { SiteVisitEquipment } from '@/types';
+import { ReportSections, StaffMember } from '@/types/v4';
 import {
   PURPOSE_OF_INVESTIGATION,
   LITERATURE_REVIEW_BODY,
@@ -12,7 +12,7 @@ import {
   REBAR_ASSESSMENT_BODY
 } from './constants';
 import { formatReportDate } from "./report-engine";
-
+import { generateResultsSummary } from "./excel-parser";
 
 // Helper to format average ECS number or other numbers
 function fmtNum(n: number | undefined | null): string {
@@ -28,9 +28,9 @@ export function generateDraftFilename(ndtCode: string): string {
 // Helper to create table cells with margins, background color, and alignment
 function cell(
   content: string | Paragraph[],
-  options: { bold?: boolean; fill?: string; color?: string; align?: any; vMerge?: any } = {}
+  options: { bold?: boolean; fill?: string; color?: string; align?: any; vMerge?: any; colSpan?: number } = {}
 ): TableCell {
-  const { bold = false, fill, color, align = AlignmentType.LEFT, vMerge } = options;
+  const { bold = false, fill, color, align = AlignmentType.LEFT, vMerge, colSpan } = options;
   let paragraphs: Paragraph[];
 
   if (typeof content === 'string') {
@@ -56,6 +56,7 @@ function cell(
     children: paragraphs,
     shading: fill ? { fill } : undefined,
     verticalMerge: vMerge,
+    columnSpan: colSpan,
     margins: {
       top: 120,
       bottom: 120,
@@ -67,8 +68,8 @@ function cell(
 }
 
 // Helper to construct a paragraph with Arial font
-function p(text: string | (TextRun | Paragraph)[], options: { bold?: boolean; align?: any; size?: number; spaceAfter?: number } = {}) {
-  const { bold = false, align = AlignmentType.LEFT, size = 22, spaceAfter = 120 } = options;
+function p(text: string | (TextRun | Paragraph)[], options: { bold?: boolean; align?: any; size?: number; spaceAfter?: number; highlight?: any } = {}) {
+  const { bold = false, align = AlignmentType.LEFT, size = 22, spaceAfter = 120, highlight } = options;
 
   if (typeof text === 'string') {
     return new Paragraph({
@@ -80,6 +81,7 @@ function p(text: string | (TextRun | Paragraph)[], options: { bold?: boolean; al
           font: "Arial",
           size,
           bold,
+          highlight,
         })
       ]
     });
@@ -118,6 +120,69 @@ function h2(text: string) {
         font: "Arial",
         size: 24, // 12pt
         bold: true,
+      })
+    ]
+  });
+}
+
+// Helper for yellow highlighted paragraphs
+function highlightedPlaceholder(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 120, after: 120 },
+    children: [
+      new TextRun({
+        text: `⚠ ${text}`,
+        highlight: 'yellow',
+        bold: true,
+        font: "Arial",
+        size: 22,
+      })
+    ]
+  });
+}
+
+function createEquipmentStatusTable(check: SiteVisitEquipment): Table {
+  const eqName = check.equipment?.equipmentName || "Unknown Equipment";
+  const eqSerial = check.equipment?.serialNumber || "Unknown Serial";
+  
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          cell("Name of Equipment", { bold: true, fill: "F1F5F9" }),
+          cell(eqName)
+        ]
+      }),
+      new TableRow({
+        children: [
+          cell("Test Equipment ID", { bold: true, fill: "F1F5F9" }),
+          cell(eqSerial)
+        ]
+      }),
+      new TableRow({
+        children: [
+          cell("Transducer (25khz)", { bold: true, fill: "F1F5F9" }),
+          cell(check.transducerOk ? "OK" : "NOT OK")
+        ]
+      }),
+      new TableRow({
+        children: [
+          cell("BNC Cables (1.5m Long) /Adapter", { bold: true, fill: "F1F5F9" }),
+          cell(check.cablesOk ? "OK" : "NOT OK")
+        ]
+      }),
+      new TableRow({
+        children: [
+          cell("Display on Machine", { bold: true, fill: "F1F5F9" }),
+          cell(check.displayOk ? "OK" : "NOT OK")
+        ]
+      }),
+      new TableRow({
+        children: [
+          cell("Battery Status", { bold: true, fill: "F1F5F9" }),
+          cell(check.batteryStatus)
+        ]
       })
     ]
   });
@@ -211,6 +276,7 @@ export async function generateReportDocx(
     if (cleanBullet.startsWith('-') || cleanBullet.startsWith('*') || /^\d+\./.test(cleanBullet)) {
       cleanBullet = cleanBullet.replace(/^[-*\d.]+\s*/, '');
     }
+    const isPlaceholder = cleanBullet.includes("VISUAL INSPECTION SUMMARY") || cleanBullet.includes("STAFF TO COMPLETE");
     docChildren.push(
       new Paragraph({
         bullet: { level: 0 },
@@ -220,6 +286,8 @@ export async function generateReportDocx(
             text: cleanBullet,
             font: "Arial",
             size: 22,
+            highlight: isPlaceholder ? 'yellow' : undefined,
+            bold: isPlaceholder ? true : undefined,
           })
         ]
       })
@@ -304,35 +372,67 @@ The scope of the work done are as follows:
     docChildren.push(p(pText.trim()));
   });
 
-  // 6. Visual Test
-  docChildren.push(h1("5.0. VISUAL TEST"));
-  docChildren.push(p("From the visual inspection conducted on the building the following observations were noted and recorded as at the time of test."));
-  docChildren.push(p("[⚠ REPORT BOT PLACEHOLDER — STAFF TO COMPLETE THIS SECTION]", { bold: true }));
-  docChildren.push(p("Please add the visual inspection findings from the site visit before sending to Proofread Bot. Include:"));
-  docChildren.push(p("- Building type and number of floors\n- Building usage/purpose\n- Structural defects observed (cracks, spalling, honeycombs, settlement, etc.)\n- Condition of structural members (columns, beams, slabs)\n- Any sagging, hogging, or settlement observed"));
+  // 4.1. Equipment Status Check
+  docChildren.push(h2("4.1. EQUIPMENT STATUS CHECK"));
+  docChildren.push(p("This section lists the equipment used on site along with their functionality checks:"));
+  if (sections.equipmentChecks && sections.equipmentChecks.length > 0) {
+    sections.equipmentChecks.forEach((check) => {
+      docChildren.push(createEquipmentStatusTable(check));
+      docChildren.push(p(""));
+    });
+  } else {
+    docChildren.push(p("No registered equipment checks were uploaded for this site visit."));
+  }
+
+  // 4.2. Visual Test
+  docChildren.push(h2("4.2. VISUAL TEST"));
+  docChildren.push(highlightedPlaceholder("STAFF TO COMPLETE — VISUAL TEST SECTION"));
+  docChildren.push(highlightedPlaceholder(`From the visual inspection conducted on the building the following observations were noted and recorded as at the time of test.
+
+[⚠ ADD VISUAL INSPECTION FINDINGS HERE — include:
+• Building type, number of floors, purpose (residential/commercial/industrial)
+• Any cracks observed — location and severity
+• Any spalling, honeycombs, or exposed reinforcement — location
+• Any sagging or hogging of structural members
+• Any differential settlement signs
+• General condition of structural members (columns, beams, slabs)
+• Reference picture numbers for each observation e.g. "(See picture 1-2)"]`));
+  
   docChildren.push(p("Following the aforementioned, a Non-Destructive Test was conducted. The photograph in the appendix of this report shows the physical state of the building structure as at test time."));
 
-  docChildren.push(new Paragraph({ children: [new PageBreak()] }));
-
-  // 7. Methodology
-  docChildren.push(h1("6.0. METHODOLOGY"));
+  // 4.3. Methodology
+  docChildren.push(h2("4.3. METHODOLOGY"));
   METHODOLOGY_SECTION.split('\n').filter(pText => pText.trim()).forEach(pText => {
     docChildren.push(p(pText.trim()));
   });
 
-  // 8. Rebar Assessment & Rebar Table
-  docChildren.push(h1("7.0. REBAR ASSESSMENT"));
+  // 4.4. Rebar Assessment
+  docChildren.push(h2("4.4. REINFORCING BAR (REBAR) ASSESSMENT"));
   REBAR_ASSESSMENT_BODY.split('\n').filter(pText => pText.trim()).forEach(pText => {
     docChildren.push(p(pText.trim()));
   });
 
-  docChildren.push(p(""));
-  docChildren.push(p("Table 7.1: Summary of Rebar/Reinforcement Details:", { bold: true }));
+  // 4.5. Rebar Assessment Table
+  docChildren.push(h2("4.5. REBAR ASSESSMENT TABLE"));
+  docChildren.push(p("Table 4.1: Summary of Rebar/Reinforcement Details:", { bold: true }));
 
   const rebar = sections.rebarTable;
   const rebarTableRows = [
     new TableRow({
       children: [
+        cell("NAME OF EQUIPMENT", { bold: true, fill: "F1F5F9" }),
+        cell(rebar.profoscopeName || "Profoscope", { colSpan: 5 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("EQUIPMENT ID", { bold: true, fill: "F1F5F9" }),
+        cell(rebar.profoscopeSerial || "Unknown Serial", { colSpan: 5 })
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("S/N", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
         cell("Structural Member", { bold: true, fill: "1E293B", color: "FFFFFF" }),
         cell("Main Bar (mm)", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
         cell("Links (mm)", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
@@ -342,7 +442,8 @@ The scope of the work done are as follows:
     }),
     new TableRow({
       children: [
-        cell("Column", { bold: true }),
+        cell("1", { align: AlignmentType.CENTER }),
+        cell("COLUMN", { bold: true }),
         cell(rebar.column.mainBar.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.column.links.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.column.spacing.toString(), { align: AlignmentType.CENTER }),
@@ -351,7 +452,8 @@ The scope of the work done are as follows:
     }),
     new TableRow({
       children: [
-        cell("Beam", { bold: true }),
+        cell("2", { align: AlignmentType.CENTER }),
+        cell("BEAM", { bold: true }),
         cell(rebar.beam.mainBar.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.beam.links.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.beam.spacing.toString(), { align: AlignmentType.CENTER }),
@@ -360,9 +462,10 @@ The scope of the work done are as follows:
     }),
     new TableRow({
       children: [
-        cell("Slab", { bold: true }),
+        cell("3", { align: AlignmentType.CENTER }),
+        cell("SLAB", { bold: true }),
         cell(rebar.slab.mainBar.toString(), { align: AlignmentType.CENTER }),
-        cell(rebar.slab.links > 0 ? rebar.slab.links.toString() : "-", { align: AlignmentType.CENTER }),
+        cell(rebar.slab.links.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.slab.spacing.toString(), { align: AlignmentType.CENTER }),
         cell(rebar.slab.coverDepth.toString(), { align: AlignmentType.CENTER }),
       ]
@@ -376,18 +479,19 @@ The scope of the work done are as follows:
 
   docChildren.push(new Paragraph({ children: [new PageBreak()] }));
 
-  // 9. Analysis of Test Results
-  docChildren.push(h1("8.0. ANALYSIS OF TEST RESULTS"));
+  // 5.0. Analysis of Test Results
+  docChildren.push(h1("5.0. ANALYSIS OF TEST RESULT"));
   docChildren.push(p("The analysis of concrete strength results was processed floor by floor based on the scientific observations taken during testing."));
 
   let tableCounter = 1;
   const floors = sections.analysisContent.floorsData;
 
+  // Render floor by floor details
   for (const floor of floors) {
     docChildren.push(h2(floor.floorName.toUpperCase()));
 
     // A. Floor Summary Table
-    docChildren.push(p(`Table 8.${tableCounter}: Summary of Test Points for ${floor.floorName}:`, { bold: true }));
+    docChildren.push(p(`Table 5.${tableCounter}: Summary of Test Points for ${floor.floorName}:`, { bold: true }));
     tableCounter++;
 
     const summaryTableRows = [
@@ -436,7 +540,7 @@ The scope of the work done are as follows:
     docChildren.push(p(""));
 
     // B. Floor Detailed UPV Table
-    docChildren.push(p(`Table 8.${tableCounter}: UPV Compressive Strength Details for ${floor.floorName}:`, { bold: true }));
+    docChildren.push(p(`Table 5.${tableCounter}: UPV Compressive Strength Details for ${floor.floorName}:`, { bold: true }));
     tableCounter++;
 
     const detailTableRows = [
@@ -457,7 +561,6 @@ The scope of the work done are as follows:
     const allFloorElems = [...floor.columns, ...floor.beams, ...floor.slabs, ...floor.shearWalls];
 
     allFloorElems.forEach((elem, elementIdx) => {
-      // 3 trials: A, B, C
       const trialA = elem.trials.find(t => t.trial === 'A') || { transmissionTime: 0, pathLength: 0, velocity: 0, ecs: 0 };
       const trialB = elem.trials.find(t => t.trial === 'B') || { transmissionTime: 0, pathLength: 0, velocity: 0, ecs: 0 };
       const trialC = elem.trials.find(t => t.trial === 'C') || { transmissionTime: 0, pathLength: 0, velocity: 0, ecs: 0 };
@@ -465,7 +568,6 @@ The scope of the work done are as follows:
       const rowShading = elementIdx % 2 === 0 ? undefined : "F8FAFC";
       const remarkColor = elem.remark === 'GOOD' ? "10B981" : "EF4444";
 
-      // Row 1 (Trial A)
       detailTableRows.push(
         new TableRow({
           children: [
@@ -481,7 +583,6 @@ The scope of the work done are as follows:
         })
       );
 
-      // Row 2 (Trial B)
       detailTableRows.push(
         new TableRow({
           children: [
@@ -497,7 +598,6 @@ The scope of the work done are as follows:
         })
       );
 
-      // Row 3 (Trial C)
       detailTableRows.push(
         new TableRow({
           children: [
@@ -522,13 +622,90 @@ The scope of the work done are as follows:
     docChildren.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // 10. Recommendation
-  docChildren.push(h1("9.0. RECOMMENDATION"));
+  // C. Summary of Test Results Table
+  docChildren.push(p("Summary of Test Results Across All Surveyed Members:", { bold: true }));
+  
+  const resultsSummary = generateResultsSummary(floors);
+  const summaryRows = [
+    new TableRow({
+      children: [
+        cell("Structural Member", { bold: true, fill: "1E293B", color: "FFFFFF" }),
+        cell("Good", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
+        cell("Poor", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
+        cell("Total", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
+        cell("% Good", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
+        cell("% Poor", { bold: true, fill: "1E293B", color: "FFFFFF", align: AlignmentType.CENTER }),
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("Column", { bold: true }),
+        cell(resultsSummary.columns.good.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.columns.poor.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.columns.total.toString(), { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.columns.pctGood.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.columns.pctPoor.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("Beam", { bold: true }),
+        cell(resultsSummary.beams.good.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.beams.poor.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.beams.total.toString(), { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.beams.pctGood.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.beams.pctPoor.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("Slab", { bold: true }),
+        cell(resultsSummary.slabs.good.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.slabs.poor.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.slabs.total.toString(), { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.slabs.pctGood.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.slabs.pctPoor.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("Shear Wall", { bold: true }),
+        cell(resultsSummary.shearWalls.good.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.shearWalls.poor.toString(), { align: AlignmentType.CENTER }),
+        cell(resultsSummary.shearWalls.total.toString(), { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.shearWalls.pctGood.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+        cell(`${resultsSummary.shearWalls.pctPoor.toFixed(2)}%`, { align: AlignmentType.CENTER }),
+      ]
+    }),
+    new TableRow({
+      children: [
+        cell("Total", { bold: true, fill: "F1F5F9" }),
+        cell(resultsSummary.total.good.toString(), { bold: true, align: AlignmentType.CENTER, fill: "F1F5F9" }),
+        cell(resultsSummary.total.poor.toString(), { bold: true, align: AlignmentType.CENTER, fill: "F1F5F9" }),
+        cell(resultsSummary.total.total.toString(), { bold: true, align: AlignmentType.CENTER, fill: "F1F5F9" }),
+        cell(`${resultsSummary.total.pctGood.toFixed(2)}%`, { bold: true, align: AlignmentType.CENTER, fill: "F1F5F9" }),
+        cell(`${resultsSummary.total.pctPoor.toFixed(2)}%`, { bold: true, align: AlignmentType.CENTER, fill: "F1F5F9" }),
+      ]
+    }),
+  ];
+
+  docChildren.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: summaryRows
+  }));
+
+  // Bar charts placeholder note
+  docChildren.push(p(""));
+  docChildren.push(p("Bar charts depicting structural member strength trends follow immediately after this section."));
+  docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // 6.0. Recommendation
+  docChildren.push(h1("6.0. RECOMMENDATION"));
   docChildren.push(p("Following the structural assessments and calculations conducted:"));
   docChildren.push(p(sections.recommendation));
 
-  // 11. Conclusion
-  docChildren.push(h1("10.0. CONCLUSION"));
+  // 7.0. Conclusion
+  docChildren.push(h1("7.0. CONCLUSION"));
   sections.conclusion.split('\n').filter(pText => pText.trim()).forEach(pText => {
     docChildren.push(p(pText.trim()));
   });
@@ -537,15 +714,18 @@ The scope of the work done are as follows:
 
   // 12. Appendix Placeholders
   docChildren.push(h1("APPENDIX"));
-  docChildren.push(h2("I. SKETCH OF THE BUILDING"));
-  docChildren.push(p("[⚠ STAFF: Please add AutoCAD sketch of the building here]"));
+  docChildren.push(h2("I. DRAWING OF THE BUILDING"));
+  docChildren.push(highlightedPlaceholder("STAFF: Please add AutoCAD sketch of the building here"));
   docChildren.push(p(""));
   
   docChildren.push(h2("II. PHOTOGRAPHS OF THE BUILDING"));
-  docChildren.push(p("Page 7 — Location Map:"));
-  docChildren.push(p("[⚠ STAFF: Please add Google Maps screenshot showing site coordinates here]"));
+  docChildren.push(highlightedPlaceholder("INSERT GOOGLE MAPS SCREENSHOT SHOWING SITE COORDINATES HERE"));
+  docChildren.push(p("Caption: Fig: Location map of the site showing coordinates", { bold: true }));
   docChildren.push(p(""));
-  docChildren.push(p("[⚠ STAFF: Please add site photographs here]"));
+  docChildren.push(highlightedPlaceholder("INSERT WEATHER CONDITION IMAGE/SCREENSHOT HERE"));
+  docChildren.push(p("Caption: Fig: Weather condition at time of test", { bold: true }));
+  docChildren.push(p(""));
+  docChildren.push(highlightedPlaceholder("STAFF: Please add site photographs here"));
 
   docChildren.push(new Paragraph({ children: [new PageBreak()] }));
 

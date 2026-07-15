@@ -15,6 +15,13 @@ export const siteVisitsRouter = router({
         numberOfFloors: z.number().optional(),
         leaderStaffId: z.string().uuid().optional(),
         managerInstructionNote: z.string().optional(),
+        equipmentChecks: z.array(z.object({
+          equipmentId: z.string().uuid(),
+          transducerOk: z.boolean(),
+          displayOk: z.boolean(),
+          cablesOk: z.boolean(),
+          batteryStatus: z.string(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -63,6 +70,27 @@ export const siteVisitsRouter = router({
 
       if (error) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      }
+
+      if (input.equipmentChecks && input.equipmentChecks.length > 0 && data && data.length > 0) {
+        const leaderVisit = data.find(v => v.is_team_leader) || data[0];
+        const equipmentToInsert = input.equipmentChecks.map(eq => ({
+          site_visit_id: leaderVisit.id,
+          equipment_id: eq.equipmentId,
+          tenant_id: activeTenantId,
+          transducer_ok: eq.transducerOk,
+          display_ok: eq.displayOk,
+          cables_ok: eq.cablesOk,
+          battery_status: eq.batteryStatus,
+        }));
+        
+        const { error: eqError } = await adminClient
+          .from("site_visit_equipment")
+          .insert(equipmentToInsert);
+        
+        if (eqError) {
+          console.error("Failed to insert site visit equipment:", eqError);
+        }
       }
 
       // Send dispatch notifications to all attending staff members

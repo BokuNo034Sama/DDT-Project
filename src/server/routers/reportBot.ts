@@ -113,4 +113,36 @@ export const reportBotRouter = router({
 
       return { downloadUrl: signedData.signedUrl };
     }),
+
+  // Get all equipment checks logged for a project's site visits
+  getEquipmentChecksByProject: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { supabase, tenantId } = ctx;
+
+      // 1. Get all site visit IDs for this project
+      const { data: visits, error: visitsError } = await supabase
+        .from("site_visits")
+        .select("id")
+        .eq("project_id", input.projectId)
+        .eq("tenant_id", tenantId);
+
+      if (visitsError || !visits || visits.length === 0) {
+        return [];
+      }
+
+      const visitIds = visits.map((v: any) => v.id);
+
+      // 2. Get equipment checks
+      const { data: checks, error: checksError } = await supabase
+        .from("site_visit_equipment")
+        .select("*, equipment:lab_equipment(*)")
+        .in("site_visit_id", visitIds);
+
+      if (checksError) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: checksError.message });
+      }
+
+      return checks || [];
+    }),
 });

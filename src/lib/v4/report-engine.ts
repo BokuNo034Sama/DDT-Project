@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ExcelFloorData, RebarMeasurements } from '@/types';
+import { ExcelFloorData } from '@/types';
 import { ReportBotInput, FrontPageData, AnalysisContent, ReportSections } from '@/types/v4';
 import { SYSTEM_PROMPT } from './constants';
 
@@ -44,7 +44,7 @@ export function generateFrontPage(data: ReportBotInput): FrontPageData {
 async function callClaude(prompt: string): Promise<string> {
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
@@ -58,50 +58,57 @@ async function callClaude(prompt: string): Promise<string> {
 }
 
 export async function generateExecutiveSummary(data: ReportBotInput): Promise<string> {
-  const prompt = `You are writing the Executive Summary for an NDT structural integrity report.
-Write exactly 3 bullet points following this EXACT format:
-
-Bullet 1 (always identical):
-"In situ Integrity Test (Non-Destructive) of compressive strength of structural members."
-
-Bullet 2 (variable — fill in the data):
-"[building state description] belonging to [CLIENT NAME] at [ADDRESS]. The Non-Destructive Integrity Test was carried out on the [date] with the intention to determine the residual compressive strength of concrete components of the structural members considered to be critical to stability, robustness and general safety of the entire building structure in its present state."
-
-Bullet 3 (variable — based on overall result):
-"The test analysis revealed that [all/the accessible] structural members tested on the building were of good strength indicating overall structural integrity. The visual inspection revealed [PLACEHOLDER — TO BE COMPLETED BY STAFF AFTER VISUAL INSPECTION]. [CLIENT NAME] was referred to a qualified structural engineer [RECOMMENDATION TEMPLATE]."
+  const prompt = `Write the Executive Summary for this NDT report as exactly 3 bullet points.
 
 DATA:
 Client Name: ${data.clientName}
 Address: ${data.address}
-Building State: ${data.buildingState}
+Building State: ${data.buildingState} (An ongoing construction / An existing building)
 Site Date: ${formatReportDate(data.siteDate)}
-Overall Test Result: ${data.overallResult}
-Recommendation Template: ${data.recommendationTemplate}
+Number of Floors: ${data.numberOfFloors}
+Overall Result: ${data.overallResult} ('all_good' or 'has_poor')
 
-RULES:
-- Building state description: if ongoing construction say "An ongoing construction"
-  if existing building say "An existing building"
-- Use exact recommendation wording from template provided
-- Bullet 3 visual inspection part: write exactly:
-  "[VISUAL INSPECTION SUMMARY — TO BE COMPLETED BY STAFF]"
-- Respond with ONLY the 3 bullet points, no other text. No preamble or conversational text.`;
+BULLET 1 (always fixed):
+"In situ Integrity Test (Non- Destructive) of compressive strength of structural members."
+
+BULLET 2 (fill in the data):
+"${data.buildingState === "ONGOING CONSTRUCTION" ? "An ongoing construction" : "An existing building"} belonging to ${data.clientName} at ${data.address}. The Non-Destructive Integrity Test was carried out on the ${formatReportDate(data.siteDate)} with the intention to determine the residual compressive strength of concrete components of the structural members considered to be critical to stability, robustness and general safety of the entire building structure in its present state."
+
+BULLET 3 (use EXACTLY this wording with client name filled in):
+${data.overallResult === 'all_good' && data.buildingState === "ONGOING CONSTRUCTION" ? `
+"The test analysis revealed that all the structural members tested on the building were of good strength and hence, ${data.clientName} was advised to engage a qualified structural engineer and other building professionals for further evaluation to provide technical, structural, and remedial recommendations, and to assess the building's suitability for continued use."
+` : ''}${data.overallResult === 'all_good' && data.buildingState !== "ONGOING CONSTRUCTION" ? `
+"The test analysis revealed that all the structural members tested on the building were of good strength and hence, ${data.clientName} was advised to engage a qualified structural engineer for further evaluation to provide technical and structural recommendations, and to assess the building's suitability for continued use."
+` : ''}${data.overallResult === 'has_poor' ? `
+"The test analysis revealed that some structural members tested on the building were rated poor and hence, ${data.clientName} was advised to engage a qualified structural engineer and other building professionals for further evaluation to provide technical, structural, and remedial recommendations, and to assess the building's suitability for continued use."
+` : ''}
+
+NOTE: Add a 4th item as a highlighted placeholder:
+"[⚠ HIGHLIGHT: VISUAL INSPECTION SUMMARY — STAFF TO COMPLETE THIS SECTION BEFORE SENDING TO PROOFREAD BOT]"
+
+Respond with ONLY the 3 bullets + the placeholder. No other text.`;
 
   return callClaude(prompt);
 }
 
 export async function generateIntroduction(data: ReportBotInput): Promise<string> {
-  const prompt = `Write the INTRODUCTION section for an NDT structural integrity report.
+  const prompt = `Write the INTRODUCTION section. Follow this template exactly:
 
-TEMPLATE (follow this exactly, fill in the [VARIABLES]):
 "Non-Destructive Test (NDT), as the name implies, means that the material under the test is not damaged during test. Direct measurement of the strength of concrete involves destructive stress and cannot be used for determining the quality of already cast concrete. It is for this reason that direct methods are not employed in determining the strength of in-situ concrete. As a result, indirect methods were used.
 
-A Non-Destructive compressive strength test (Integrity Test) was conducted on [BUILDING DESCRIPTION: e.g. "an existing 4-floor building" or "an ongoing 3-floor construction"] located at [ADDRESS].
+A Non-Destructive compressive strength test (Integrity Test) was conducted on ${
+    data.buildingState === "ONGOING CONSTRUCTION"
+      ? `an ongoing ${data.numberOfFloors}-floor construction`
+      : `an existing ${data.numberOfFloors}-floor building`
+  } located at ${data.address}.
 
-The map showing the exact location of the site is on page 7.
+The map showing the exact location and weather condition of the site is on page 7.
 
-[DRAWING STATEMENT — choose one]:
-  IF drawing provided: "Architectural and Structural drawing were provided, and a concrete design strength of [GRADE]N/MM2 was used for the analysis of the structural members. To aid the intending test a sketch was drawn."
-  IF NOT provided: "Architectural drawing and Structural drawing were not provided, therefore, an assumed design strength of 25N/MM2 was used for the analysis of the structural members. To aid the intending test a sketch was drawn."
+${
+  data.drawingProvided
+    ? `Architectural and Structural drawing were provided, and a concrete design strength of ${data.concreteGrade}N/MM2 was used for the analysis of the structural members. To aid the intending test a sketch was drawn.`
+    : `Architectural drawing and Structural drawing were not provided, therefore, an assumed strength of 25N/MM2 was used for the analysis of the structural members. To aid the intending test a sketch was drawn.`
+}
 
 Additionally, the soil test report was not provided before and after the test."
 
@@ -112,41 +119,44 @@ Address: ${data.address}
 Drawing Provided: ${data.drawingProvided}
 Concrete Grade: ${data.concreteGrade}
 
-Respond with ONLY the introduction text, no headers, no labels. No preamble or conversational text.`;
+Respond with ONLY the introduction text.`;
 
   return callClaude(prompt);
 }
 
 export async function generateConclusion(data: ReportBotInput): Promise<string> {
-  const poorElementsCount = data.excelData.reduce((acc, f) => {
-    const all = [...f.columns, ...f.beams, ...f.slabs, ...f.shearWalls];
-    return acc + all.filter(e => e.remark === 'POOR').length;
-  }, 0);
+  // Estimate page range: start page is 9 + floors, end page is start page + floors - 1
+  const startPage = 9 + data.numberOfFloors;
+  const endPage = startPage + data.numberOfFloors - 1;
+  const pageRange = data.numberOfFloors === 1 ? `${startPage}` : `${startPage}-${endPage}`;
 
-  const prompt = `Write the CONCLUSION section for an NDT structural integrity report.
+  const prompt = `Write the CONCLUSION section:
 
-TEMPLATE (follow this exactly, fill in the [VARIABLES]):
-"The visual and structural integrity test was conducted in accordance with BS EN 12504-4:2004, BS 1881: Part 201: 1986, BS 4408: Part 5: 1974. The outcome of the test results analyzed is represented through Bar charts on page ([PAGE_NUMBER]) of this report.
+"The visual and structural integrity test was conducted in accordance with BS EN 12504-4:2004, BS 1881: Part 201: 1986, BS 4408: Part 5: 1974. The outcome of the test results analyzed is represented through Bar charts on page (${pageRange}) of this report.
 
-1. The bar chart shows the summary of all the test results, in percentage of strength for each structural member which revealed that [ALL/MAJORITY] the accessible structural elements tested have strength above the [assumed/stated] design strength of [GRADE]N/mm² and were rated good. [CORRECTIVE MEASURE STATEMENT if any poor results]
+1. The bar chart shows the summary of all the test results, in percentage of strength for each structural member which revealed that ${
+    data.overallResult === 'all_good' ? 'all' : 'the accessible'
+  } the accessible structural elements tested have strength above the ${
+    data.drawingProvided ? 'stated' : 'assumed'
+  } design strength of ${data.concreteGrade}N/mm² and were rated good. ${
+    data.overallResult === 'has_poor'
+      ? "It is compulsory to carry out the corrective measure(s) as recommended above to guarantee the strength/stability of the poor structural members in order to avert any future collapse."
+      : ""
+  }
 
 2. However, it is imperative to state clearly that non-adherence to the recommendation excludes us from any responsibility.
 
-Note: The test assumed [GRADE]N/mm² as the strength of the structural members, however a substructure probe is required to ascertain the integrity of the building foundation."
+Note: The test ${
+    data.drawingProvided ? 'used' : 'assumed'
+  } ${data.concreteGrade}N/mm² as the strength of the structural members, however a substructure probe is required to ascertain the integrity of the building foundation."
 
 DATA:
 Concrete Grade: ${data.concreteGrade}
 Drawing Provided: ${data.drawingProvided}
 Overall Result: ${data.overallResult}
-Poor Elements Found: ${poorElementsCount}
+Page Range for bar charts: ${pageRange}
 
-RULES for [CORRECTIVE MEASURE STATEMENT if any poor results]:
-- If Poor Elements Found is 0, omit the statement.
-- If Poor Elements Found > 0, include statement: "For elements rated poor, remedial measures such as retrofitting or structural strengthening are recommended under the supervision of a registered structural engineer."
-- Choose [ALL] if Poor Elements Found is 0, choose [MAJORITY] if Poor Elements Found > 0.
-- Assumed/stated design strength: if drawingProvided is true say "stated", if false say "assumed".
-
-Respond with ONLY the conclusion text. No preamble or conversational text.`;
+Respond with ONLY the conclusion text.`;
 
   return callClaude(prompt);
 }
@@ -158,22 +168,17 @@ export function generateAnalysisContent(floors: ExcelFloorData[]): AnalysisConte
   };
 }
 
-export function generateRecommendation(
-  buildingState: string,
-  visualInspectionNotes: string // will be "[PLACEHOLDER]" at draft stage
-): string {
-  if (buildingState === "ONGOING CONSTRUCTION" || buildingState.toUpperCase().includes("CONSTRUCTION")) {
-    return "the client was referred to a qualified structural engineer and other building professionals for further evaluation to provide technical and structural recommendations, and to assess the building's suitability for continued use.";
-  }
-  if (visualInspectionNotes.includes("POOR") || visualInspectionNotes.includes("DEFECT") || visualInspectionNotes === "[PLACEHOLDER]") {
-    // Default to Template A if defects might be present or at draft stage
-    return "the client was referred to a qualified structural engineer for further evaluation to provide technical, structural and remedial recommendations, and to assess the building's suitability for continued use.";
-  }
-  // Otherwise default template
-  return "the client was referred to a qualified structural engineer for further evaluation to provide technical and structural recommendations, and to assess the building's suitability for continued use.";
+export function generateRecommendation(pageRange: string): string {
+  return `Based on the outcome of the Visual and Non-Destructive Test carried out on the building which shows its status as described in the visual test and depicted in the bar charts page (${pageRange}) at the time of test, it is therefore advised that:
+
+- A qualified structural engineer and other building professionals should be engaged to proffer technical and structural recommendations for the building to be structurally stable and to assess the building's suitability for continued use.`;
 }
 
 export async function runReportBot(input: ReportBotInput): Promise<ReportSections> {
+  const startPage = 9 + input.numberOfFloors;
+  const endPage = startPage + input.numberOfFloors - 1;
+  const pageRange = input.numberOfFloors === 1 ? `${startPage}` : `${startPage}-${endPage}`;
+
   const [
     frontPage,
     executiveSummary,
@@ -187,7 +192,7 @@ export async function runReportBot(input: ReportBotInput): Promise<ReportSection
   ]);
 
   const analysisContent = generateAnalysisContent(input.excelData);
-  const recommendation = generateRecommendation(input.buildingState, '[PLACEHOLDER]');
+  const recommendation = generateRecommendation(pageRange);
 
   return {
     frontPage,
@@ -197,5 +202,6 @@ export async function runReportBot(input: ReportBotInput): Promise<ReportSection
     analysisContent,
     recommendation,
     conclusion,
+    equipmentChecks: input.equipmentChecks,
   };
 }

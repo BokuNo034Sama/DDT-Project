@@ -19,11 +19,67 @@ import {
   Zap,
   X,
   ArrowRight,
+  Wrench,
+  Plus,
+  Trash2,
+  Edit,
 } from "lucide-react";
 
 export function SettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"profile" | "billing">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "billing" | "equipment">("profile");
+
+  // Equipment states
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedEq, setSelectedEq] = useState<any>(null);
+
+  const [newEqName, setNewEqName] = useState("");
+  const [newEqSerial, setNewEqSerial] = useState("");
+  const [newEqType, setNewEqType] = useState("UPV");
+
+  const [editEqName, setEditEqName] = useState("");
+  const [editEqSerial, setEditEqSerial] = useState("");
+
+  const { data: equipmentList, refetch: refetchEquipment } = trpc.equipment.listEquipment.useQuery(undefined, {
+    enabled: activeTab === "equipment",
+  });
+
+  const addEquipmentMutation = trpc.equipment.addEquipment.useMutation({
+    onSuccess: () => {
+      toast({ title: "Equipment added", description: "The equipment was added successfully." });
+      refetchEquipment();
+      setIsAddOpen(false);
+      setNewEqName("");
+      setNewEqSerial("");
+      setNewEqType("UPV");
+    },
+    onError: (err) => {
+      toast({ title: "Failed to add equipment", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const deactivateEquipmentMutation = trpc.equipment.deactivateEquipment.useMutation({
+    onSuccess: () => {
+      toast({ title: "Equipment deactivated", description: "The equipment was deactivated." });
+      refetchEquipment();
+    },
+    onError: (err) => {
+      toast({ title: "Failed to deactivate", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const updateEquipmentMutation = trpc.equipment.updateEquipment.useMutation({
+    onSuccess: () => {
+      toast({ title: "Equipment updated", description: "The equipment was updated successfully." });
+      refetchEquipment();
+      setIsEditOpen(false);
+      setSelectedEq(null);
+    },
+    onError: (err) => {
+      toast({ title: "Failed to update", description: err.message, variant: "destructive" });
+    }
+  });
 
   const utils = trpc.useUtils();
   const { data: tenant, isLoading } = trpc.settings.getTenant.useQuery();
@@ -221,6 +277,17 @@ export function SettingsPage() {
           <CreditCard className="w-4 h-4" />
           <span>Billing & Subscription</span>
         </button>
+        <button
+          onClick={() => setActiveTab("equipment")}
+          className={`px-4 py-2 text-sm font-semibold tracking-wide border-b-2 transition-all flex items-center gap-1.5 ${
+            activeTab === "equipment"
+              ? "border-ddt-accent text-ddt-text"
+              : "border-transparent text-ddt-muted hover:text-ddt-text"
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          <span>Lab Equipment Registry</span>
+        </button>
       </div>
 
       {/* Tab Panel: Profile */}
@@ -397,6 +464,221 @@ export function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab Panel: Equipment */}
+      {activeTab === "equipment" && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-ddt-border bg-ddt-raised flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-ddt-accent" />
+                <h2 className="text-sm font-syne font-bold uppercase tracking-wider text-ddt-muted">
+                  Lab Equipment Registry
+                </h2>
+              </div>
+              {isLabOwner && (
+                <Button
+                  onClick={() => setIsAddOpen(true)}
+                  disabled={equipmentList && equipmentList.length >= 8}
+                  className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1 shadow transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Equipment</span>
+                </Button>
+              )}
+            </div>
+
+            <div className="p-6 space-y-6">
+              <p className="text-xs text-ddt-muted leading-relaxed">
+                Register and manage the equipment used by your field engineers during site visits (maximum of 8 active devices). Registered equipment will be available for checklist verification when logging site visits.
+              </p>
+
+              {equipmentList && equipmentList.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {equipmentList.map((eq: any) => (
+                    <div
+                      key={eq.id}
+                      className="bg-ddt-input border border-ddt-border hover:border-ddt-border-strong rounded-xl p-4 flex flex-col justify-between space-y-3 transition-all"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-ddt-raised text-ddt-accent border border-ddt-border font-bold">
+                            {eq.equipment_type}
+                          </span>
+                          <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-ddt-text mt-1">{eq.equipment_name}</h4>
+                        <p className="text-xs text-ddt-muted font-mono">S/N: {eq.serial_number}</p>
+                      </div>
+
+                      {isLabOwner && (
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-ddt-border/50">
+                          <Button
+                            onClick={() => {
+                              setSelectedEq(eq);
+                              setEditEqName(eq.equipment_name);
+                              setEditEqSerial(eq.serial_number);
+                              setIsEditOpen(true);
+                            }}
+                            variant="ghost"
+                            className="h-8 text-xs text-ddt-muted hover:text-ddt-text px-2.5 rounded-lg"
+                          >
+                            <Edit className="w-3.5 h-3.5 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            onClick={() => deactivateEquipmentMutation.mutate({ equipmentId: eq.id })}
+                            disabled={deactivateEquipmentMutation.isPending}
+                            variant="ghost"
+                            className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/20 px-2.5 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            Deactivate
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 border border-dashed border-ddt-border rounded-xl text-center space-y-2">
+                  <p className="text-sm text-ddt-muted font-medium">No registered equipment found.</p>
+                  <p className="text-xs text-ddt-faint">Add equipment to start tracking site usage verification checklist.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Equipment Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 animate-in fade-in duration-200">
+          <div className="bg-ddt-surface border border-ddt-border rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-ddt-border pb-3">
+              <h4 className="font-syne font-bold text-ddt-text text-base uppercase tracking-wider">Add Lab Equipment</h4>
+              <button onClick={() => setIsAddOpen(false)} className="text-ddt-muted hover:text-ddt-text">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="eq-name" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">Equipment Name *</Label>
+                <Input
+                  id="eq-name"
+                  value={newEqName}
+                  onChange={(e) => setNewEqName(e.target.value)}
+                  placeholder="e.g. UPV (Pundit PL-200)"
+                  className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="eq-serial" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">Serial Number *</Label>
+                <Input
+                  id="eq-serial"
+                  value={newEqSerial}
+                  onChange={(e) => setNewEqSerial(e.target.value)}
+                  placeholder="e.g. Box-B/UP01-004-0036"
+                  className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="eq-type" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">Equipment Type *</Label>
+                <select
+                  id="eq-type"
+                  value={newEqType}
+                  onChange={(e) => setNewEqType(e.target.value)}
+                  className="w-full bg-ddt-input border border-ddt-border focus:border-ddt-accent rounded-md py-2 px-3 text-sm text-ddt-text focus:outline-none"
+                >
+                  <option value="UPV">UPV</option>
+                  <option value="Profoscope">Profoscope</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-ddt-border flex items-center justify-end gap-3">
+              <Button variant="ghost" onClick={() => setIsAddOpen(false)} className="text-ddt-muted hover:text-ddt-text text-xs">
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  addEquipmentMutation.mutate({
+                    equipmentName: newEqName,
+                    serialNumber: newEqSerial,
+                    equipmentType: newEqType,
+                  })
+                }
+                disabled={addEquipmentMutation.isPending || !newEqName.trim() || !newEqSerial.trim()}
+                className="bg-ddt-lime text-black font-bold hover:bg-ddt-lime/90 text-xs"
+              >
+                {addEquipmentMutation.isPending ? "Adding..." : "Add Equipment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Equipment Modal */}
+      {isEditOpen && selectedEq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 animate-in fade-in duration-200">
+          <div className="bg-ddt-surface border border-ddt-border rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-ddt-border pb-3">
+              <h4 className="font-syne font-bold text-ddt-text text-base uppercase tracking-wider">Edit Equipment</h4>
+              <button onClick={() => { setIsEditOpen(false); setSelectedEq(null); }} className="text-ddt-muted hover:text-ddt-text">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-eq-name" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">Equipment Name *</Label>
+                <Input
+                  id="edit-eq-name"
+                  value={editEqName}
+                  onChange={(e) => setEditEqName(e.target.value)}
+                  className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-eq-serial" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">Serial Number *</Label>
+                <Input
+                  id="edit-eq-serial"
+                  value={editEqSerial}
+                  onChange={(e) => setEditEqSerial(e.target.value)}
+                  className="bg-ddt-input border-ddt-border text-ddt-text focus:border-ddt-accent font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-ddt-border flex items-center justify-end gap-3">
+              <Button variant="ghost" onClick={() => { setIsEditOpen(false); setSelectedEq(null); }} className="text-ddt-muted hover:text-ddt-text text-xs">
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  updateEquipmentMutation.mutate({
+                    equipmentId: selectedEq.id,
+                    equipmentName: editEqName,
+                    serialNumber: editEqSerial,
+                  })
+                }
+                disabled={updateEquipmentMutation.isPending || !editEqName.trim() || !editEqSerial.trim()}
+                className="bg-ddt-lime text-black font-bold hover:bg-ddt-lime/90 text-xs"
+              >
+                {updateEquipmentMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -84,8 +84,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       {/* Pipeline visualization & assignments & proof logs */}
       <PipelineBar project={project} />
 
-      {/* Render ReportBotPanel when manager and status is report_done */}
-      {isManager && project.status === "report_done" && (
+      {/* Render ReportBotPanel when manager and status is report_done or report_bot_draft */}
+      {isManager && (project.status === "report_done" || project.status === "report_bot_draft") && (
         <div id="report-bot-panel">
           <ReportBotPanel project={project} />
         </div>

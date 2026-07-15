@@ -1,4 +1,4 @@
-import { RebarMeasurements, ExcelFloorData } from "./index";
+import { RebarMeasurements, ExcelFloorData, SiteVisitEquipment } from "./index";
 
 export interface ReportBotInput {
   projectId: string;
@@ -14,8 +14,9 @@ export interface ReportBotInput {
   concreteGrade: string;
   rebarData: RebarMeasurements;
   excelData: ExcelFloorData[];
-  overallResult: "all_good" | "majority_good" | "mixed";
+  overallResult: "all_good" | "has_poor";
   recommendationTemplate: string;
+  equipmentChecks: SiteVisitEquipment[];
 }
 
 export interface FrontPageData {
@@ -49,6 +50,7 @@ export interface ReportSections {
   analysisContent: AnalysisContent;
   recommendation: string;
   conclusion: string;
+  equipmentChecks: SiteVisitEquipment[];
 }
 
 export interface StaffMember {

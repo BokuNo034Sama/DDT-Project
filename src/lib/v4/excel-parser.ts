@@ -10,6 +10,8 @@ const FLOOR_NAMES: Record<string, string> = {
   'TF': 'Third Floor',
   'FoF': 'Fourth Floor',
   'FiF': 'Fifth Floor',
+  '6F': 'Sixth Floor',
+  'RF': 'Roof Floor',
 };
 
 const FLOOR_ORDER: Record<string, number> = {
@@ -21,6 +23,8 @@ const FLOOR_ORDER: Record<string, number> = {
   'TF': 3,
   'FOF': 4,
   'FIF': 5,
+  '6F': 6,
+  'RF': 7,
 };
 
 function getElementType(id: string): 'column' | 'beam' | 'slab' | 'shearWall' {
@@ -162,24 +166,78 @@ export function generateFloorSummary(floor: ExcelFloorData): FloorSummary {
   };
 }
 
-export function getOverallResult(floors: ExcelFloorData[]): 'all_good' | 'majority_good' | 'mixed' {
-  let goodCount = 0;
-  let poorCount = 0;
-
+export function getOverallResult(floors: ExcelFloorData[]): 'all_good' | 'has_poor' {
   for (const floor of floors) {
     const all = [...floor.columns, ...floor.beams, ...floor.slabs, ...floor.shearWalls];
     for (const elem of all) {
-      if (elem.remark === 'GOOD') {
-        goodCount++;
-      } else {
-        poorCount++;
+      if (elem.remark === 'POOR') {
+        return 'has_poor';
       }
     }
   }
+  return 'all_good';
+}
 
-  const total = goodCount + poorCount;
-  if (total === 0) return 'all_good';
-  if (poorCount === 0) return 'all_good';
-  if (goodCount / total > 0.50) return 'majority_good';
-  return 'mixed';
+export interface MemberSummary {
+  good: number;
+  poor: number;
+  total: number;
+  pctGood: number;
+  pctPoor: number;
+}
+
+export interface ResultsSummary {
+  columns: MemberSummary;
+  beams: MemberSummary;
+  slabs: MemberSummary;
+  shearWalls: MemberSummary;
+  total: MemberSummary;
+}
+
+export function generateResultsSummary(floors: ExcelFloorData[]): ResultsSummary {
+  const summary: ResultsSummary = {
+    columns: { good: 0, poor: 0, total: 0, pctGood: 0, pctPoor: 0 },
+    beams: { good: 0, poor: 0, total: 0, pctGood: 0, pctPoor: 0 },
+    slabs: { good: 0, poor: 0, total: 0, pctGood: 0, pctPoor: 0 },
+    shearWalls: { good: 0, poor: 0, total: 0, pctGood: 0, pctPoor: 0 },
+    total: { good: 0, poor: 0, total: 0, pctGood: 0, pctPoor: 0 },
+  };
+
+  const processList = (elements: ElementData[], member: MemberSummary) => {
+    for (const elem of elements) {
+      member.total++;
+      if (elem.remark === 'GOOD') {
+        member.good++;
+      } else {
+        member.poor++;
+      }
+    }
+  };
+
+  for (const floor of floors) {
+    processList(floor.columns, summary.columns);
+    processList(floor.beams, summary.beams);
+    processList(floor.slabs, summary.slabs);
+    processList(floor.shearWalls, summary.shearWalls);
+  }
+
+  // Calculate totals
+  summary.total.good = summary.columns.good + summary.beams.good + summary.slabs.good + summary.shearWalls.good;
+  summary.total.poor = summary.columns.poor + summary.beams.poor + summary.slabs.poor + summary.shearWalls.poor;
+  summary.total.total = summary.columns.total + summary.beams.total + summary.slabs.total + summary.shearWalls.total;
+
+  const calcPct = (member: MemberSummary) => {
+    if (member.total > 0) {
+      member.pctGood = (member.good / member.total) * 100;
+      member.pctPoor = (member.poor / member.total) * 100;
+    }
+  };
+
+  calcPct(summary.columns);
+  calcPct(summary.beams);
+  calcPct(summary.slabs);
+  calcPct(summary.shearWalls);
+  calcPct(summary.total);
+
+  return summary;
 }

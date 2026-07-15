@@ -74,10 +74,34 @@ export interface ReportCheck {
 
 export type ReportDraft = Database["public"]["Tables"]["report_drafts"]["Row"];
 
+export interface LabEquipment {
+  id: string
+  tenantId: string
+  equipmentName: string
+  serialNumber: string
+  equipmentType: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface SiteVisitEquipment {
+  id: string
+  siteVisitId: string
+  equipmentId: string
+  equipment?: LabEquipment
+  transducerOk: boolean
+  displayOk: boolean
+  cablesOk: boolean
+  batteryStatus: string
+}
+
 export interface RebarMeasurements {
+  profoscopeId: string       // equipment ID from lab_equipment
+  profoscopeName: string
+  profoscopeSerial: string
   column: { mainBar: number; links: number; spacing: number; coverDepth: number }
   beam:   { mainBar: number; links: number; spacing: number; coverDepth: number }
-  slab:   { mainBar: number; links: number; spacing: number; coverDepth: number }
+  slab:   { mainBar: string; links: string; spacing: number; coverDepth: number }
 }
 
 export interface ExcelFloorData {
@@ -107,4 +131,5 @@ export interface ReportDraftInput {
   concreteGrade: string
   drawingProvided: boolean
   rebarData: RebarMeasurements
+  equipmentChecks: SiteVisitEquipment[]
 }
