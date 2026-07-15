@@ -1,12 +1,27 @@
 import { z } from "zod";
 import { router, protectedProcedure, managerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const equipmentRouter = router({
   // Returns all active lab equipment for current tenant
   listEquipment: protectedProcedure.query(async ({ ctx }) => {
-    const { supabase, tenantId } = ctx;
-    const { data: equipment, error } = await supabase
+    const adminClient = createAdminClient();
+    const { data: profile, error: profileError } = await adminClient
+      .from("users")
+      .select("tenant_id")
+      .eq("id", ctx.userId)
+      .single();
+
+    if (profileError || !profile?.tenant_id) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Could not retrieve tenant_id for the user profile",
+      });
+    }
+    const tenantId = profile.tenant_id;
+
+    const { data: equipment, error } = await adminClient
       .from("lab_equipment")
       .select("*")
       .eq("tenant_id", tenantId)
@@ -30,10 +45,23 @@ export const equipmentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const adminClient = createAdminClient();
+      const { data: profile, error: profileError } = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      if (profileError || !profile?.tenant_id) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Could not retrieve tenant_id for the user profile",
+        });
+      }
+      const tenantId = profile.tenant_id;
 
       // Check current active count
-      const { count, error: countError } = await supabase
+      const { count, error: countError } = await adminClient
         .from("lab_equipment")
         .select("*", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
@@ -50,7 +78,7 @@ export const equipmentRouter = router({
         });
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await adminClient
         .from("lab_equipment")
         .insert({
           tenant_id: tenantId,
@@ -73,9 +101,22 @@ export const equipmentRouter = router({
   deactivateEquipment: managerProcedure
     .input(z.object({ equipmentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const adminClient = createAdminClient();
+      const { data: profile, error: profileError } = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
 
-      const { data, error } = await supabase
+      if (profileError || !profile?.tenant_id) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Could not retrieve tenant_id for the user profile",
+        });
+      }
+      const tenantId = profile.tenant_id;
+
+      const { data, error } = await adminClient
         .from("lab_equipment")
         .update({ is_active: false })
         .eq("id", input.equipmentId)
@@ -100,9 +141,22 @@ export const equipmentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { supabase, tenantId } = ctx;
+      const adminClient = createAdminClient();
+      const { data: profile, error: profileError } = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
 
-      const { data, error } = await supabase
+      if (profileError || !profile?.tenant_id) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Could not retrieve tenant_id for the user profile",
+        });
+      }
+      const tenantId = profile.tenant_id;
+
+      const { data, error } = await adminClient
         .from("lab_equipment")
         .update({
           equipment_name: input.equipmentName,

@@ -41,7 +41,7 @@ export function SettingsPage() {
   const [editEqName, setEditEqName] = useState("");
   const [editEqSerial, setEditEqSerial] = useState("");
 
-  const { data: equipmentList, refetch: refetchEquipment } = trpc.equipment.listEquipment.useQuery(undefined, {
+  const { data: equipmentList, refetch: refetchEquipment, isLoading: isLoadingEquipment } = trpc.equipment.listEquipment.useQuery(undefined, {
     enabled: activeTab === "equipment",
   });
 
@@ -233,6 +233,7 @@ export function SettingsPage() {
   };
 
   const isLabOwner = role === "lab_owner" || role === "super_admin";
+  const isManager = role === "lab_owner" || role === "ops_manager" || role === "super_admin";
 
   if (isLoading || isLoadingSub) {
     return (
@@ -277,17 +278,19 @@ export function SettingsPage() {
           <CreditCard className="w-4 h-4" />
           <span>Billing & Subscription</span>
         </button>
-        <button
-          onClick={() => setActiveTab("equipment")}
-          className={`px-4 py-2 text-sm font-semibold tracking-wide border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "equipment"
-              ? "border-ddt-accent text-ddt-text"
-              : "border-transparent text-ddt-muted hover:text-ddt-text"
-          }`}
-        >
-          <Wrench className="w-4 h-4" />
-          <span>Lab Equipment Registry</span>
-        </button>
+        {isManager && (
+          <button
+            onClick={() => setActiveTab("equipment")}
+            className={`px-4 py-2 text-sm font-semibold tracking-wide border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === "equipment"
+                ? "border-ddt-accent text-ddt-text"
+                : "border-transparent text-ddt-muted hover:text-ddt-text"
+            }`}
+          >
+            <Wrench className="w-4 h-4" />
+            <span>Lab Equipment Registry</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Panel: Profile */}
@@ -468,7 +471,7 @@ export function SettingsPage() {
       )}
 
       {/* Tab Panel: Equipment */}
-      {activeTab === "equipment" && (
+      {activeTab === "equipment" && isManager && (
         <div className="space-y-8 animate-in fade-in duration-300">
           <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md overflow-hidden">
             <div className="px-6 py-4 border-b border-ddt-border bg-ddt-raised flex items-center justify-between">
@@ -478,15 +481,17 @@ export function SettingsPage() {
                   Lab Equipment Registry
                 </h2>
               </div>
-              {isLabOwner && (
-                <Button
-                  onClick={() => setIsAddOpen(true)}
-                  disabled={equipmentList && equipmentList.length >= 8}
-                  className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1 shadow transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Equipment</span>
-                </Button>
+              {isManager && (
+                <div title={equipmentList && equipmentList.length >= 8 ? "Maximum of 8 equipment reached. Deactivate an existing one to add a new one." : undefined}>
+                  <Button
+                    onClick={() => setIsAddOpen(true)}
+                    disabled={equipmentList && equipmentList.length >= 8}
+                    className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1 shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Equipment</span>
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -495,7 +500,12 @@ export function SettingsPage() {
                 Register and manage the equipment used by your field engineers during site visits (maximum of 8 active devices). Registered equipment will be available for checklist verification when logging site visits.
               </p>
 
-              {equipmentList && equipmentList.length > 0 ? (
+              {isLoadingEquipment ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="h-24 bg-ddt-input/50 animate-pulse rounded-xl border border-ddt-border" />
+                  <div className="h-24 bg-ddt-input/50 animate-pulse rounded-xl border border-ddt-border" />
+                </div>
+              ) : equipmentList && equipmentList.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {equipmentList.map((eq: any) => (
                     <div
@@ -504,7 +514,7 @@ export function SettingsPage() {
                     >
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-ddt-raised text-ddt-accent border border-ddt-border font-bold">
+                          <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-ddt-raised text-ddt-accent border border-ddt-border font-bold animate-in fade-in">
                             {eq.equipment_type}
                           </span>
                           <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
@@ -516,7 +526,7 @@ export function SettingsPage() {
                         <p className="text-xs text-ddt-muted font-mono">S/N: {eq.serial_number}</p>
                       </div>
 
-                      {isLabOwner && (
+                      {isManager && (
                         <div className="flex items-center justify-end gap-2 pt-2 border-t border-ddt-border/50">
                           <Button
                             onClick={() => {
@@ -532,7 +542,11 @@ export function SettingsPage() {
                             Edit
                           </Button>
                           <Button
-                            onClick={() => deactivateEquipmentMutation.mutate({ equipmentId: eq.id })}
+                            onClick={() => {
+                              if (confirm(`Deactivate ${eq.equipment_name}? It will no longer appear in site visit selections.`)) {
+                                deactivateEquipmentMutation.mutate({ equipmentId: eq.id });
+                              }
+                            }}
                             disabled={deactivateEquipmentMutation.isPending}
                             variant="ghost"
                             className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/20 px-2.5 rounded-lg"
@@ -546,9 +560,22 @@ export function SettingsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-8 border border-dashed border-ddt-border rounded-xl text-center space-y-2">
-                  <p className="text-sm text-ddt-muted font-medium">No registered equipment found.</p>
-                  <p className="text-xs text-ddt-faint">Add equipment to start tracking site usage verification checklist.</p>
+                <div className="p-8 border border-dashed border-ddt-border rounded-xl text-center space-y-4 flex flex-col items-center justify-center bg-ddt-input/20">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-bold text-ddt-text">No equipment registered yet</h3>
+                    <p className="text-xs text-ddt-muted max-w-md mx-auto leading-relaxed">
+                      Add your lab&apos;s testing equipment to enable equipment tracking on site visits and automatic inclusion in Report Bot drafts.
+                    </p>
+                  </div>
+                  {isManager && (
+                    <Button
+                      onClick={() => setIsAddOpen(true)}
+                      className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1 shadow transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add First Equipment</span>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -617,7 +644,12 @@ export function SettingsPage() {
                     equipmentType: newEqType,
                   })
                 }
-                disabled={addEquipmentMutation.isPending || !newEqName.trim() || !newEqSerial.trim()}
+                disabled={
+                  addEquipmentMutation.isPending ||
+                  !newEqName.trim() ||
+                  !newEqSerial.trim() ||
+                  (equipmentList && equipmentList.length >= 8)
+                }
                 className="bg-ddt-lime text-black font-bold hover:bg-ddt-lime/90 text-xs"
               >
                 {addEquipmentMutation.isPending ? "Adding..." : "Add Equipment"}
