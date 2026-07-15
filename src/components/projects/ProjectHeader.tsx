@@ -45,34 +45,28 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
   const [isConfirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
-  const deleteMutation = trpc.projects.deleteProject.useMutation({
-    onSuccess: async () => {
-      toast({
-        title: "Project Deleted",
-        description: "The project has been successfully deleted.",
-      });
+  const deleteProject = trpc.projects.delete.useMutation({
+    onSuccess: (data) => {
       setConfirmDeleteModalOpen(false);
-      // 1. Force a global cache invalidation to instantly wipe the deleted project from the main dashboard sidebar/list
-      await utils.projects.getDashboardList.invalidate();
-      await utils.projects.list.invalidate();
-      await utils.projects.getDashboardData.invalidate();
+      // Invalidate ALL project-related queries
+      utils.projects.list.invalidate();
+      utils.projects.getDashboardData.invalidate();
+      utils.projects.getOnboardingStatus.invalidate();
 
-      // 2. Route the user cleanly back to the root workspace overview
-      router.push("/dashboard");
+      // If on project detail page → navigate away
+      router.push("/projects");
+
+      // Show success toast
+      toast.success(`Project deleted successfully`);
     },
-    onError: (error: any) => {
-      console.error("Failed to delete project:", error.message);
-      toast({
-        title: "Deletion Failed",
-        description: error.message || "Failed to delete project.",
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toast.error(`Failed to delete project: ${error.message}`);
     },
   });
 
   const handleExecuteProjectDeletion = () => {
     if (deleteConfirmationText !== "DELETE") return;
-    deleteMutation.mutate({ id: project.id });
+    deleteProject.mutate({ id: project.id });
   };
 
   const { data: me } = trpc.staff.getMe.useQuery();
@@ -450,10 +444,10 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
               <button
                 type="button"
                 onClick={handleExecuteProjectDeletion}
-                disabled={deleteConfirmationText !== "DELETE" || deleteMutation.isPending}
+                disabled={deleteConfirmationText !== "DELETE" || deleteProject.isPending}
                 className="text-xs px-3 py-2 bg-rose-950/40 border border-rose-800/60 hover:bg-rose-900/60 text-rose-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                {deleteMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {deleteProject.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Confirm Permanent Deletion</span>
               </button>
             </div>

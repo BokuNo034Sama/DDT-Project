@@ -420,110 +420,57 @@ export const projectsRouter = router({
     return data;
   }),
 
-  deleteProject: managerProcedure
-    .input(
-      z.object({
-        id: z.string().min(1, "Project ID is required"),
-      })
-    )
+  delete: managerProcedure
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { id } = input;
-      const { supabase, tenantId } = ctx;
+      const adminClient = createAdminClient()
 
-      console.log(`[DATABASE PURGE] Executing coercion bypass for project ID: ${id}`);
+      // Verify project belongs to this tenant
+      const { data: project } = await adminClient
+        .from('projects')
+        .select('id, tenant_id, ndt_code')
+        .eq('id', input.id)
+        .single()
 
-      try {
-        // 1. Double-check item existence & tenant matching before executing drops
-        const { data: existingProject, error: checkError } = await supabase
-          .from("projects")
-          .select("id")
-          .eq("id", id)
-          .eq("tenant_id", tenantId)
-          .maybeSingle();
-
-        if (checkError || !existingProject) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: `Project not found or access denied for ID: ${id}`,
-          });
-        }
-
-        // 2. Cascade manual cleanup of child dependencies to clear foreign key blockers
-        const { error: err1 } = await supabase
-          .from("project_stage_assignments")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err1) throw err1;
-
-        const { error: err2 } = await supabase
-          .from("status_history")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err2) throw err2;
-
-        const { error: err3 } = await supabase
-          .from("site_visit_logs")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err3) throw err3;
-
-        const { error: err4 } = await supabase
-          .from("site_visits")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err4) throw err4;
-
-        const { error: err5 } = await supabase
-          .from("proof_reviews")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err5) throw err5;
-
-        const { error: err6 } = await supabase
-          .from("report_checks")
-          .delete()
-          .eq("project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err6) throw err6;
-
-        const { error: err7 } = await supabase
-          .from("notifications")
-          .delete()
-          .eq("related_project_id", id)
-          .eq("tenant_id", tenantId);
-        if (err7) throw err7;
-
-        // 3. Purge the parent project row using a flat select query to bypass single-row coercion
-        const { data: deletedProjects, error: deleteError } = await supabase
-          .from("projects")
-          .delete()
-          .eq("id", id)
-          .eq("tenant_id", tenantId)
-          .select("id");
-
-        if (deleteError) {
-          throw deleteError;
-        }
-
-        const count = deletedProjects?.length || 0;
-        console.log(`[DATABASE PURGE] Success. Rows dropped: ${count}`);
-        return { success: true, count: count };
-
-      } catch (error: any) {
-        console.error("[CRITICAL TRANS TRANSACTION CRASH]:", error);
-        
-        if (error instanceof TRPCError) throw error;
-
+      if (!project) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Database block execution abort: ${error.message || "Cascade failed"}`,
-        });
+          code: 'NOT_FOUND',
+          message: 'Project not found'
+        })
       }
+
+      // Verify tenant ownership
+      const { data: user } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
+
+      if (project.tenant_id !== user?.tenant_id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Not authorized to delete this project'
+        })
+      }
+
+      console.log('Attempting to delete project:', input.id)
+      const { error, data } = await adminClient
+        .from('projects')
+        .delete()
+        .eq('id', input.id)
+        .select()  // Add .select() to confirm what was deleted
+      console.log('Delete result:', { error, data })
+
+      if (error) {
+        console.error('Delete error:', error)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to delete project: ' + error.message
+        })
+      }
+
+      return { success: true, deletedId: input.id }
     }),
 });
+
 

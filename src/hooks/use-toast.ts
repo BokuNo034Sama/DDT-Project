@@ -133,34 +133,58 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
-  const id = genId()
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
-  })
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  }
+interface ToastObject {
+  id: string
+  dismiss: () => void
+  update: (props: ToasterToast) => void
 }
+
+interface ToastFn {
+  ({ ...props }: Toast): ToastObject
+  success: (description: string) => ToastObject
+  error: (description: string) => ToastObject
+}
+
+const toast = (() => {
+  const t = ({ ...props }: Toast) => {
+    const id = genId()
+
+    const update = (props: ToasterToast) =>
+      dispatch({
+        type: "UPDATE_TOAST",
+        toast: { ...props, id },
+      })
+    const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+
+    dispatch({
+      type: "ADD_TOAST",
+      toast: {
+        ...props,
+        id,
+        open: true,
+        onOpenChange: (open) => {
+          if (!open) dismiss()
+        },
+      },
+    })
+
+    return {
+      id,
+      dismiss,
+      update,
+    }
+  }
+
+  t.success = (description: string) => {
+    return t({ description, title: "Success" })
+  }
+
+  t.error = (description: string) => {
+    return t({ description, title: "Error", variant: "destructive" as const })
+  }
+
+  return t as ToastFn
+})()
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
@@ -183,3 +207,4 @@ function useToast() {
 }
 
 export { useToast, toast }
+
