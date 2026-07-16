@@ -182,7 +182,15 @@ export function PipelineBar({ project }: PipelineBarProps) {
   return (
     <div className="space-y-6">
       {/* Horizontal Pipeline Bar Container */}
-      <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 relative overflow-hidden">
+      <div
+        className="shadow-md relative overflow-hidden"
+        style={{
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "12px",
+          padding: "24px",
+        }}
+      >
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-syne font-bold uppercase tracking-wider text-ddt-muted">
@@ -510,7 +518,15 @@ export function PipelineBar({ project }: PipelineBarProps) {
 
       {/* Proof Review History Audit Trail (Below Pipeline Bar) */}
       {proofReviews.length > 0 && (
-        <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6">
+        <div
+          className="shadow-md"
+          style={{
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "12px",
+            padding: "24px",
+          }}
+        >
           <h3 className="text-sm font-syne font-bold uppercase tracking-wider text-ddt-muted mb-4">
             Proofread Review History
           </h3>

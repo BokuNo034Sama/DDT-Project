@@ -18,7 +18,15 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-ddt-surface border border-ddt-border rounded-xl">
+      <div
+        className="flex flex-col items-center justify-center py-12 shadow-md animate-pulse"
+        style={{
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "12px",
+          padding: "24px",
+        }}
+      >
         <Loader2 className="w-8 h-8 animate-spin text-ddt-accent mb-2" />
         <span className="text-xs text-ddt-muted">Retrieving site inspection records...</span>
       </div>
@@ -27,7 +35,15 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-950/15 border border-red-500/20 rounded-xl text-center">
+      <div
+        className="text-center shadow-md"
+        style={{
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "12px",
+          padding: "24px",
+        }}
+      >
         <p className="text-sm text-red-400">Failed to load inspection data: {error.message}</p>
       </div>
     );
@@ -37,7 +53,15 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
 
   if (completedLogs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center bg-ddt-input/20 border border-dashed border-ddt-border rounded-xl p-6">
+      <div
+        className="flex flex-col items-center justify-center py-12 text-center border border-dashed shadow-md"
+        style={{
+          background: "var(--color-bg-surface)",
+          borderColor: "var(--color-border)",
+          borderRadius: "12px",
+          padding: "24px",
+        }}
+      >
         <Camera className="w-10 h-10 text-ddt-faint mb-2" />
         <p className="text-sm font-syne font-bold text-ddt-text uppercase tracking-wide">No Inspections Completed</p>
         <p className="text-xs text-ddt-muted max-w-sm mt-1">
@@ -64,7 +88,13 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
         return (
           <div
             key={log.id}
-            className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 relative overflow-hidden transition-all duration-300 hover:border-ddt-border-strong"
+            className="shadow-md relative overflow-hidden transition-all duration-300 hover:border-ddt-border-strong"
+            style={{
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "12px",
+              padding: "24px",
+            }}
           >
             {/* Log Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ddt-border/50 pb-4 mb-4">

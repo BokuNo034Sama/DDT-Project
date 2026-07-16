@@ -55,7 +55,15 @@ export function StatusHistory({ project }: StatusHistoryProps) {
   };
 
   return (
-    <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6">
+    <div
+      className="shadow-md"
+      style={{
+        background: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "12px",
+        padding: "24px",
+      }}
+    >
       <div className="flex items-center justify-between gap-4 mb-6">
         <h2 className="text-sm font-syne font-bold uppercase tracking-wider text-ddt-muted flex items-center gap-2">
           <History className="w-4 h-4 text-ddt-accent" />
@@ -66,7 +74,7 @@ export function StatusHistory({ project }: StatusHistoryProps) {
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-1 text-xs text-ddt-accent hover:underline focus:outline-none"
           >
-            <span>{isExpanded ? "Show Less" : `Show All (${sortedHistory.length})`}</span>
+            <span>{isExpanded ? "Show less" : "Show full history"}</span>
             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         )}

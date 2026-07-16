@@ -222,7 +222,15 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   );
 
   return (
-    <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 flex flex-col h-full justify-between">
+    <div
+      className="shadow-md flex flex-col h-full justify-between"
+      style={{
+        background: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "12px",
+        padding: "24px",
+      }}
+    >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">

@@ -142,7 +142,15 @@ export function ProjectHeader({ project, onUpdateSuccess }: ProjectHeaderProps) 
   };
 
   return (
-    <div className="bg-ddt-surface border border-ddt-border rounded-xl shadow-md p-6 relative overflow-hidden transition-all duration-300 hover:border-ddt-border-strong">
+    <div
+      className="shadow-md relative overflow-hidden transition-all duration-300 hover:border-ddt-border-strong"
+      style={{
+        background: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "12px",
+        padding: "24px",
+      }}
+    >
       {/* Absolute top decorative Sky Blue glow border */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-ddt-accent/20 via-ddt-accent to-ddt-accent/20" />
 
