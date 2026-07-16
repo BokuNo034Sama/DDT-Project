@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StageAssignModal } from "./StageAssignModal";
 import { ProofReviewModal } from "./ProofReviewModal";
 import { formatDuration } from "@/lib/efficiency";
+import Link from "next/link";
 import {
   Activity,
   Brush,
@@ -22,6 +23,7 @@ import {
   Loader2,
   Sparkles,
   Download,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -29,23 +31,84 @@ import { useToast } from "@/hooks/use-toast";
 
 import { ProjectWithRelations } from "@/types";
 import { STATUS_ORDER } from "@/lib/status-transitions";
+import { ReportBotPanel } from "@/components/v4/ReportBotPanel";
 
 interface PipelineBarProps {
   project: ProjectWithRelations;
+  stages: any[];
+  userRole: string;
+  plan: "free" | "starter" | "pro";
 }
 
-export function PipelineBar({ project }: PipelineBarProps) {
+// Local helper component for Proofread Bot Panel
+function ProofreadBotPanel({
+  projectId,
+  project,
+  isManager,
+  setIsProofOpen,
+}: {
+  projectId: string;
+  project: any;
+  isManager: boolean;
+  setIsProofOpen: (val: boolean) => void;
+}) {
+  const isCompleted = STATUS_ORDER.indexOf(project.status || "not_started") > STATUS_ORDER.indexOf("proof_ready");
+
+  if (isCompleted) {
+    return (
+      <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center mt-4">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        <span>Proofread Bot Completed</span>
+      </span>
+    );
+  }
+
+  if (project.status === "proof_ready") {
+    return (
+      <div className="mt-4">
+        {isManager ? (
+          <Button
+            type="button"
+            onClick={() => setIsProofOpen(true)}
+            className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
+          >
+            Send to Proofread Bot
+          </Button>
+        ) : (
+          <span className="text-xs text-emerald-400 font-semibold block text-center">Ready for proofreading</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <span className="text-xs text-ddt-faint italic font-medium font-sans block text-center mt-4">
+      Awaiting previous stages
+    </span>
+  );
+}
+
+export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProps) {
   const isOnline = useNetworkStatus();
   const { toast } = useToast();
   const utils = trpc.useUtils();
-  
+
   // Modals visibility state
   const [assignStage, setAssignStage] = useState<"analysis" | "sketch" | "report_writing" | "proofreading" | null>(null);
   const [isProofOpen, setIsProofOpen] = useState(false);
   const [activeReassignId, setActiveReassignId] = useState<string | null>(null);
 
   const { data: me } = trpc.staff.getMe.useQuery();
-  const role = me?.role;
+  const role = userRole || me?.role || "staff";
+  const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
+
+  const isProPlan = plan === "pro";
+
+  // Mode states for Gated Pipeline Options
+  const [reportMode, setReportMode] = useState<"staff" | "ai">(
+    project.status === "report_bot_draft" ? "ai" : "staff"
+  );
+  const [proofMode, setProofMode] = useState<"staff" | "ai">("staff");
 
   // Get active staff members in the tenant for reassigning dropdown
   const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery();
@@ -73,7 +136,6 @@ export function PipelineBar({ project }: PipelineBarProps) {
     },
   });
 
-
   useEffect(() => {
     if (!activeReassignId) return;
 
@@ -87,8 +149,6 @@ export function PipelineBar({ project }: PipelineBarProps) {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [activeReassignId]);
-
-  const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 
   // Stages configuration
   const stagesConfig = [
@@ -108,28 +168,34 @@ export function PipelineBar({ project }: PipelineBarProps) {
       icon: FileText,
     },
     {
-      id: "report_bot" as const,
-      label: "Report Bot",
-      icon: Sparkles,
-      managerOnly: true,
+      id: "proofreading" as const,
+      label: "Proofreading",
+      icon: FileCheck,
     },
     {
-      id: "proofreading" as const,
-      label: "Proofread Bot",
-      icon: FileCheck,
-      managerOnly: true,
+      id: "lsmtl_upload" as const,
+      label: "LSMTL Upload",
+      icon: Upload,
     },
   ];
 
   // Helper to determine active stage
   const getStageStatus = (stageId: string, assignment: any) => {
-    if (stageId !== "report_bot") {
-      if (assignment?.status === "completed") return "completed";
-      if (assignment?.status === "failed") return "failed";
-      if (assignment?.status === "in_progress") return "in_progress";
+    if (stageId === "lsmtl_upload") {
+      const status = project.status;
+      if (status === "report_uploaded" || status === "report_verified" || status === "report_delivered") {
+        return "completed";
+      }
+      if (status === "proof_ready" || status === "report_done") {
+        return "active";
+      }
+      return "pending";
     }
-    
-    // Auto-compute active/next stage in the pipeline if status not set explicitly
+
+    if (assignment?.status === "completed") return "completed";
+    if (assignment?.status === "failed") return "failed";
+    if (assignment?.status === "in_progress") return "in_progress";
+
     const status = project.status;
     if (stageId === "analysis") {
       if (status === "not_started") return "pending";
@@ -144,18 +210,6 @@ export function PipelineBar({ project }: PipelineBarProps) {
       if (status === "sketch_done") return "active";
       return "pending";
     }
-    if (stageId === "report_bot") {
-      if (status === "report_done") {
-        if (draft?.status === "generating") return "in_progress";
-        return "active";
-      }
-      if (status === "report_bot_draft") return "in_progress";
-      
-      const orderIdx = STATUS_ORDER.indexOf(status || "not_started");
-      const proofReadyIdx = STATUS_ORDER.indexOf("proof_ready");
-      if (orderIdx >= proofReadyIdx) return "completed";
-      return "pending";
-    }
     if (stageId === "proofreading") {
       if (status === "proof_ready") return "active";
       const orderIdx = STATUS_ORDER.indexOf(status || "not_started");
@@ -163,15 +217,112 @@ export function PipelineBar({ project }: PipelineBarProps) {
       if (orderIdx >= uploadedIdx) return "completed";
       return "pending";
     }
-    
+
     return "pending";
   };
 
   const getStageDisplayStatus = (stageId: string, assignment: any) => {
     const calculated = getStageStatus(stageId, assignment);
     if (assignment?.status) return assignment.status;
-    if (stageId === "report_bot") return calculated;
+    if (stageId === "lsmtl_upload") return calculated;
     return calculated === "active" ? "in_progress" : "pending";
+  };
+
+  const renderStaffAssignSection = (stage: any, assignment: any) => {
+    return (
+      <div className="my-2">
+        {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <UserPill
+                name={assignment.assigned_user?.full_name || "Assigned Technician"}
+                avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .substring(0, 2)}
+              />
+            </div>
+
+            {isManager && (
+              <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
+                {/* Reassign dropdown triggering */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
+                    disabled={!isOnline || reassignMutation.isPending}
+                    className={cn(
+                      "w-full flex items-center justify-center space-x-2 py-2 px-4 border border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-medium text-slate-300 transition-all group",
+                      (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {reassignMutation.isPending && activeReassignId === assignment.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                    ) : (
+                      <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+                    )}
+                    <span>Reassign Staff</span>
+                  </button>
+
+                  {activeReassignId === assignment.id && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                      {loadingStaff ? (
+                        <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
+                          <span>Loading staff...</span>
+                        </div>
+                      ) : (
+                        staffList
+                          ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
+                          .map((member: any) => (
+                            <button
+                              key={member.id}
+                              type="button"
+                              onClick={() => {
+                                reassignMutation.mutate({
+                                  taskId: assignment.id,
+                                  newStaffId: member.id,
+                                });
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
+                            >
+                              {member.full_name}
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {isManager ? (
+              <Button
+                type="button"
+                onClick={() => isOnline && setAssignStage(stage.id)}
+                disabled={!isOnline}
+                className={cn(
+                  "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
+                  isOnline
+                    ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
+                    : "cursor-not-allowed opacity-50 bg-ddt-input"
+                )}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Assign Staff</span>
+              </Button>
+            ) : (
+              <span className="text-xs text-ddt-faint italic font-medium font-sans">
+                Unassigned
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Proof reviews & faults calculations
@@ -203,25 +354,16 @@ export function PipelineBar({ project }: PipelineBarProps) {
               </span>
             )}
           </div>
-          {project.status === "proof_ready" && isManager && (
-            <Button
-              onClick={() => setIsProofOpen(true)}
-              className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-semibold text-xs py-1.5 px-3 rounded shadow-sm shadow-ddt-lime/10 transition-all duration-200"
-            >
-              Send to Proofread Bot
-            </Button>
-          )}
         </div>
 
         {/* 5-Stage Horizontal/Vertical Pipeline */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 relative font-sans">
           {stagesConfig.map((stage, index) => {
             const assignment = project.project_stage_assignments?.find((a) => a.stage === stage.id);
             const displayStatus = getStageDisplayStatus(stage.id, assignment);
             const isCompleted = displayStatus === "completed";
             const isFailed = displayStatus === "failed";
             const isInProgress = displayStatus === "in_progress";
-            const isPending = displayStatus === "pending";
 
             // Colors mapping
             let borderClass = "border-ddt-border";
@@ -244,31 +386,21 @@ export function PipelineBar({ project }: PipelineBarProps) {
               statusLabel = "In Progress";
             }
 
-            if (stage.id === "report_bot") {
-              if (displayStatus === "active") {
+            if (stage.id === "lsmtl_upload") {
+              const status = project.status;
+              if (status === "report_uploaded" || status === "report_verified" || status === "report_delivered") {
+                borderClass = "border-emerald-500/40 bg-emerald-950/5";
+                statusIcon = <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+                statusLabel = "Report Uploaded";
+              } else if (status === "proof_ready" || status === "report_done") {
                 borderClass = "border-ddt-accent/60 bg-ddt-accent/5";
                 glowClass = "shadow-lg shadow-ddt-accent/5 ring-1 ring-ddt-accent/30";
                 statusIcon = <Clock className="w-4 h-4 text-ddt-accent" />;
-                statusLabel = "Draft Pending";
-              } else if (displayStatus === "in_progress") {
-                if (draft?.status === "generating") {
-                  borderClass = "border-ddt-accent bg-ddt-accent/5";
-                  glowClass = "shadow-lg shadow-ddt-accent/10 ring-1 ring-ddt-accent";
-                  statusIcon = <Loader2 className="w-4 h-4 text-ddt-accent animate-spin" />;
-                  statusLabel = "Writing Draft...";
-                } else {
-                  borderClass = "border-amber-500/40 bg-amber-950/5";
-                  statusIcon = <Clock className="w-4 h-4 text-amber-400" />;
-                  statusLabel = "Staff Editing";
-                }
-              } else if (displayStatus === "completed") {
-                borderClass = "border-emerald-500/40 bg-emerald-950/5";
-                statusIcon = <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-                statusLabel = "Completed";
+                statusLabel = "Awaiting Upload";
               } else {
                 borderClass = "border-ddt-border";
                 statusIcon = <Clock className="w-4 h-4 text-ddt-faint" />;
-                statusLabel = "Awaiting Start";
+                statusLabel = "Awaiting previous stages";
               }
             }
 
@@ -276,7 +408,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
               <div
                 key={stage.id}
                 className={cn(
-                  "border rounded-xl p-4 flex flex-col justify-between min-h-[140px] relative transition-all duration-300",
+                  "border rounded-xl p-4 flex flex-col justify-between min-h-[160px] relative transition-all duration-300",
                   borderClass,
                   glowClass
                 )}
@@ -302,199 +434,171 @@ export function PipelineBar({ project }: PipelineBarProps) {
                       </span>
                     </div>
                   </div>
-
-                  {stage.managerOnly && !isManager && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-ddt-raised text-[10px] text-ddt-muted border border-ddt-border font-medium">
-                      <Shield className="w-3 h-3 text-ddt-accent" />
-                      <span>Mgr Only</span>
-                    </span>
-                  )}
                 </div>
 
-                {/* Assignee Section */}
+                {/* Content Section */}
                 <div className="my-4 flex-1 flex flex-col justify-center">
-                  {stage.id === "report_bot" ? (
-                    <div className="space-y-2">
-                      {project.status === "report_done" && (
-                        <>
-                          {draft?.status === "generating" ? (
-                            <div className="flex items-center gap-2 text-xs text-ddt-muted animate-pulse">
-                              <Loader2 className="w-3.5 h-3.5 text-ddt-accent animate-spin" />
-                              <span>Report Bot is writing your report...</span>
-                            </div>
-                          ) : (
-                            <>
-                              {draft?.status === "draft_ready" ? (
-                                <div className="space-y-2">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#0A2018] text-[#50D898] border border-[#0F4A2A]">
-                                    Draft Ready
-                                  </span>
-                                  <a
-                                    href={`/api/v4/download-draft?draftId=${draft.id}`}
-                                    download
-                                    className="flex items-center justify-center gap-1.5 py-1.5 px-3 border border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-semibold text-slate-300 transition-all"
-                                  >
-                                    <Download className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Download Draft</span>
-                                  </a>
-                                </div>
-                              ) : (
-                                <>
-                                  {isManager ? (
-                                    <Button
-                                      onClick={() => {
-                                        const el = document.getElementById("report-bot-panel");
-                                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                                      }}
-                                      className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
-                                    >
-                                      Generate Report Draft
-                                    </Button>
-                                  ) : (
-                                    <span className="text-xs text-ddt-faint italic font-medium">Awaiting draft generation</span>
-                                  )}
-                                </>
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-
-                      {project.status === "report_bot_draft" && (
-                        <div className="space-y-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#241A0A] text-[#F59E0B] border border-[#452A0F]">
-                            Staff Editing
-                          </span>
-                          {draft && (
-                            <a
-                              href={`/api/v4/download-draft?draftId=${draft.id}`}
-                              download
-                              className="flex items-center justify-center gap-1.5 py-1.5 px-3 border border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-semibold text-slate-300 transition-all"
-                            >
-                              <Download className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Download Draft</span>
-                            </a>
-                          )}
+                  {stage.id === "report_writing" ? (
+                    isProPlan ? (
+                      <div className="space-y-3">
+                        <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                          Report Writing Mode
+                        </p>
+                        <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setReportMode("staff")}
+                            className={cn(
+                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                              reportMode === "staff"
+                                ? "bg-ddt-accent text-black shadow-md"
+                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                            )}
+                          >
+                            👤 Staff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReportMode("ai")}
+                            className={cn(
+                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                              reportMode === "ai"
+                                ? "bg-ddt-accent text-black shadow-md"
+                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                            )}
+                          >
+                            🤖 Report Bot
+                          </button>
                         </div>
-                      )}
 
-                      {project.status === "proof_ready" && (
-                        <>
-                          {isManager ? (
-                            <Button
-                              onClick={() => setIsProofOpen(true)}
-                              className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
-                            >
-                              Send to Proofread Bot
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-emerald-400 font-semibold">Ready for proofreading</span>
-                          )}
-                        </>
-                      )}
+                        {reportMode === "staff" ? (
+                          renderStaffAssignSection(stage, assignment)
+                        ) : (
+                          <div className="mt-2">
+                            <ReportBotPanel project={project} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {renderStaffAssignSection(stage, assignment)}
+                        <div 
+                          className="mt-3 flex flex-col gap-1.5 text-[11px]"
+                          style={{
+                            background: "rgba(163, 230, 53, 0.06)",
+                            border: "1px solid rgba(163, 230, 53, 0.2)",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                          }}
+                        >
+                          <span className="text-ddt-muted leading-snug">
+                            ✨ Pro plan includes Report Bot AI to generate draft reports automatically.
+                          </span>
+                          <Link
+                            href="/settings?tab=billing"
+                            className="text-xs font-bold hover:underline"
+                            style={{ color: "#A3E635" }}
+                          >
+                            Upgrade to Pro →
+                          </Link>
+                        </div>
+                      </div>
+                    )
+                  ) : stage.id === "proofreading" ? (
+                    isProPlan ? (
+                      <div className="space-y-3">
+                        <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                          Proofreading Mode
+                        </p>
+                        <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setProofMode("staff")}
+                            className={cn(
+                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                              proofMode === "staff"
+                                ? "bg-ddt-accent text-black shadow-md"
+                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                            )}
+                          >
+                            👤 Staff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProofMode("ai")}
+                            className={cn(
+                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                              proofMode === "ai"
+                                ? "bg-ddt-accent text-black shadow-md"
+                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                            )}
+                          >
+                            🤖 Proofread Bot
+                          </button>
+                        </div>
 
-                      {STATUS_ORDER.indexOf(project.status || "not_started") > STATUS_ORDER.indexOf("proof_ready") && (
-                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                        {proofMode === "staff" ? (
+                          renderStaffAssignSection(stage, assignment)
+                        ) : (
+                          <div className="mt-2">
+                            <ProofreadBotPanel
+                              projectId={project.id}
+                              project={project}
+                              isManager={isManager}
+                              setIsProofOpen={setIsProofOpen}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {renderStaffAssignSection(stage, assignment)}
+                        <div 
+                          className="mt-3 flex flex-col gap-1.5 text-[11px]"
+                          style={{
+                            background: "rgba(163, 230, 53, 0.06)",
+                            border: "1px solid rgba(163, 230, 53, 0.2)",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                          }}
+                        >
+                          <span className="text-ddt-muted leading-snug">
+                            ✨ Pro plan includes Proofread Bot AI to check reports against LSMTL guidelines.
+                          </span>
+                          <Link
+                            href="/settings?tab=billing"
+                            className="text-xs font-bold hover:underline"
+                            style={{ color: "#A3E635" }}
+                          >
+                            Upgrade to Pro →
+                          </Link>
+                        </div>
+                      </div>
+                    )
+                  ) : stage.id === "lsmtl_upload" ? (
+                    <div className="my-4 flex-1 flex flex-col justify-center text-center">
+                      {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
+                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Completed</span>
+                          <span>Report Uploaded Successfully</span>
                         </span>
-                      )}
-
-                      {STATUS_ORDER.indexOf(project.status || "not_started") < STATUS_ORDER.indexOf("report_done") && (
-                        <span className="text-xs text-ddt-faint italic font-medium font-sans">
+                      ) : project.status === "proof_ready" || project.status === "report_done" ? (
+                        <div className="text-center space-y-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950/50 text-amber-400 border border-amber-500/30">
+                            Awaiting Upload
+                          </span>
+                          <p className="text-[11px] text-ddt-muted max-w-[180px] mx-auto leading-normal">
+                            Awaiting manager to upload the finalized proofread report to LSMTL.
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-ddt-faint italic font-medium font-sans text-center block">
                           Awaiting previous stages
                         </span>
                       )}
                     </div>
                   ) : (
-                    assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <UserPill
-                            name={assignment.assigned_user?.full_name || "Assigned Technician"}
-                            avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                               .substring(0, 2)}
-                          />
-                        </div>
-
-                        {isManager && (
-                          <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
-                            {/* Reassign dropdown triggering */}
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
-                                disabled={!isOnline || reassignMutation.isPending}
-                                className={cn(
-                                  "w-full flex items-center justify-center space-x-2 py-2 px-4 border border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-medium text-slate-300 transition-all group",
-                                  (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
-                                )}
-                              >
-                                {reassignMutation.isPending && activeReassignId === assignment.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                                ) : (
-                                  <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
-                                )}
-                                <span>Reassign Staff</span>
-                              </button>
-
-                              {activeReassignId === assignment.id && (
-                                <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                                  {loadingStaff ? (
-                                    <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
-                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
-                                      <span>Loading staff...</span>
-                                    </div>
-                                  ) : (
-                                    staffList
-                                      ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
-                                      .map((member: any) => (
-                                        <button
-                                          key={member.id}
-                                          onClick={() => {
-                                            reassignMutation.mutate({
-                                              taskId: assignment.id,
-                                              newStaffId: member.id,
-                                            });
-                                          }}
-                                          className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
-                                        >
-                                          {member.full_name}
-                                        </button>
-                                      ))
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        {isManager ? (
-                          <Button
-                            onClick={() => isOnline && setAssignStage(stage.id)}
-                            disabled={!isOnline}
-                            className={cn(
-                              "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
-                              isOnline
-                                ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
-                                : "cursor-not-allowed opacity-50 bg-ddt-input"
-                            )}
-                          >
-                            <UserPlus className="w-3.5 h-3.5" />
-                            <span>Assign Staff</span>
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-ddt-faint italic font-medium font-sans">
-                            Unassigned
-                          </span>
-                        )}
-                      </div>
-                    )
+                    renderStaffAssignSection(stage, assignment)
                   )}
                 </div>
 
@@ -602,6 +706,8 @@ export function PipelineBar({ project }: PipelineBarProps) {
         isOpen={isProofOpen}
         onOpenChange={setIsProofOpen}
         projectId={project.id}
+        projectCode={project.ndt_code || ""}
+        clientName={project.client_name || ""}
       />
     </div>
   );

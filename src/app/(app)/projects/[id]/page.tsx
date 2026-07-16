@@ -22,6 +22,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const { data: me } = trpc.staff.getMe.useQuery();
   const role = me?.role;
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
+  const { data: subscription } = trpc.settings.getSubscription.useQuery();
   const { data: project, isLoading, error } = trpc.projects.getById.useQuery(
     { id },
     {
@@ -81,14 +82,12 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       <ProjectHeader project={project} />
 
       {/* Pipeline visualization & assignments & proof logs */}
-      <PipelineBar project={project} />
-
-      {/* Render ReportBotPanel when manager and status is report_done or report_bot_draft */}
-      {isManager && (project.status === "report_done" || project.status === "report_bot_draft") && (
-        <div id="report-bot-panel">
-          <ReportBotPanel project={project} />
-        </div>
-      )}
+      <PipelineBar
+        project={project}
+        stages={project.project_stage_assignments || []}
+        userRole={role || "staff"}
+        plan={subscription?.plan ?? "free"}
+      />
 
       {/* Site Visits Log */}
       <SiteVisitsList project={project} />

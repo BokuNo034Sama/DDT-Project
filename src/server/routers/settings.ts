@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, managerProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const settingsRouter = router({
   // Get current tenant details
@@ -258,71 +259,48 @@ export const settingsRouter = router({
       // Ignore if outside Next context
     }
 
-    const { supabase, tenantId } = ctx;
+    const adminClient = createAdminClient();
+    const { data: user } = await adminClient
+      .from("users")
+      .select("tenant_id")
+      .eq("id", ctx.userId)
+      .single();
 
-    // 1. Fetch the tenant created_at date for fallback calculations
-    let tenantCreatedAt: string | null = null;
-    try {
-      const { data: tenant } = await supabase
-        .from("tenants")
-        .select("created_at")
-        .eq("id", tenantId)
-        .single();
-      if (tenant) {
-        tenantCreatedAt = tenant.created_at;
-      }
-    } catch (e) {
-      // Ignore
-    }
+    const { data } = await adminClient
+      .from("subscriptions")
+      .select("status, plan_name, trial_ends_at, current_period_end")
+      .eq("tenant_id", user?.tenant_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    // 2. Query the subscriptions table (most recent row)
-    try {
-      const { data: subs, error: subError } = await (supabase as any)
-        .from("subscriptions")
-        .select("status, plan_name, trial_ends_at")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(1);
+    const now = new Date();
+    const trialEnd = data?.trial_ends_at ? new Date(data.trial_ends_at) : null;
+    const isTrialActive = trialEnd ? trialEnd > now : false;
+    const daysRemaining = trialEnd
+      ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0;
 
-      const sub = subs?.[0];
-
-      if (sub && !subError) {
-        // If subscription row exists -> use its status value (default to 'trial' if nullish)
-        const trialEndsAt = sub.trial_ends_at || (tenantCreatedAt 
-          ? new Date(new Date(tenantCreatedAt).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()
-          : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-        );
-        const nowTime = new Date().getTime();
-        const trialTime = new Date(trialEndsAt).getTime();
-        const daysRemaining = Math.max(0, Math.ceil((trialTime - nowTime) / (1000 * 60 * 60 * 24)));
-
-        return {
-          status: sub.status ?? "trial",
-          planName: (sub.plan_name as "starter" | "pro") || "starter",
-          trialEndsAt,
-          currentPeriodEnd: trialEndsAt,
-          daysRemaining,
-        };
-      }
-    } catch (e) {
-      // Ignore subscriptions table query error (e.g. if it doesn't exist yet)
-    }
-
-    // 3. If NO subscription row found -> default to 'trial'
-    const trialEndsAt = tenantCreatedAt 
-      ? new Date(new Date(tenantCreatedAt).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    
-    const nowTime = new Date().getTime();
-    const trialTime = new Date(trialEndsAt).getTime();
-    const daysRemaining = Math.max(0, Math.ceil((trialTime - nowTime) / (1000 * 60 * 60 * 24)));
+    // Determine effective plan
+    // During trial → 'free'
+    // Active starter → 'starter'
+    // Active pro → 'pro'
+    const effectivePlan = !data
+      ? "free"
+      : data.status === "trial"
+      ? "free"
+      : data.plan_name === "pro"
+      ? "pro"
+      : "starter";
 
     return {
-      status: "trial",
-      planName: "starter" as const,
-      trialEndsAt,
-      currentPeriodEnd: trialEndsAt,
+      status: data?.status ?? "trial",
+      plan: effectivePlan,
+      planName: data?.plan_name ?? "starter",
+      trialEndsAt: data?.trial_ends_at ?? null,
+      currentPeriodEnd: data?.current_period_end ?? null,
       daysRemaining,
+      isTrialActive,
     };
   }),
 });
