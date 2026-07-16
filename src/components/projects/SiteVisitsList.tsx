@@ -51,7 +51,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
   const role = me?.role || null;
 
   // Get active staff members in the tenant for reassigning dropdown
-  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery();
 
   const isManager = role === "ops_manager" || role === "lab_owner" || role === "super_admin";
 

@@ -20,7 +20,7 @@ interface StageAssignModalProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   stage: "analysis" | "sketch" | "report_writing" | "proofreading";
-  currentAssignedId?: string | null;
+  currentAssigneeId?: string;
   onSuccess?: () => void;
 }
 
@@ -29,19 +29,21 @@ export function StageAssignModal({
   onOpenChange,
   projectId,
   stage,
-  currentAssignedId,
+  currentAssigneeId,
   onSuccess,
 }: StageAssignModalProps) {
   const { toast } = useToast();
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
 
   // Get active staff members in the tenant
-  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+  const { data: staffList, isLoading } = trpc.staff.list.useQuery();
+
+  const staffOptions = staffList ?? [];
 
   const utils = trpc.useUtils();
   const assignMutation = trpc.stages.assign.useMutation({
     onSuccess: async () => {
-      const assignedUser = staffList?.find((u: any) => u.id === selectedStaffId);
+      const assignedUser = staffOptions.find((u: any) => u.id === selectedStaffId);
       const nameStr = assignedUser ? assignedUser.full_name : "Unassigned";
 
       toast({
@@ -74,9 +76,9 @@ export function StageAssignModal({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedStaffId(currentAssignedId || "unassigned");
+      setSelectedStaffId(currentAssigneeId || "unassigned");
     }
-  }, [isOpen, currentAssignedId]);
+  }, [isOpen, currentAssigneeId]);
 
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +105,8 @@ export function StageAssignModal({
     }
   };
 
+  if (isLoading) return <div>Loading staff...</div>;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="bg-ddt-surface border border-ddt-border text-ddt-text max-w-md w-[95%] sm:w-full rounded-xl">
@@ -121,30 +125,22 @@ export function StageAssignModal({
             <Label htmlFor="staff-select" className="text-xs font-semibold text-ddt-muted uppercase tracking-wider">
               Assignee
             </Label>
-            {loadingStaff ? (
-              <div className="flex items-center gap-2 py-2 text-sm text-ddt-muted">
-                <Loader2 className="w-4 h-4 animate-spin text-ddt-accent" />
-                <span>Loading staff list...</span>
-              </div>
-            ) : (
-              <select
-                id="staff-select"
-                value={selectedStaffId}
-                onChange={(e) => setSelectedStaffId(e.target.value)}
-                className="w-full bg-ddt-input border border-ddt-border text-ddt-text rounded-md py-2.5 px-3 focus:outline-none focus:border-ddt-accent focus:ring-1 focus:ring-ddt-accent text-sm"
-              >
-                <option value="unassigned" className="bg-ddt-surface">
-                  Unassigned
+            <select
+              id="staff-select"
+              value={selectedStaffId}
+              onChange={(e) => setSelectedStaffId(e.target.value)}
+              defaultValue={currentAssigneeId}
+              className="w-full bg-ddt-input border border-ddt-border text-ddt-text rounded-md py-2.5 px-3 focus:outline-none focus:border-ddt-accent focus:ring-1 focus:ring-ddt-accent text-sm"
+            >
+              <option value="unassigned" className="bg-ddt-surface">
+                Unassigned
+              </option>
+              {staffOptions.map((member: any) => (
+                <option key={member.id} value={member.id} className="bg-ddt-surface">
+                  {member.full_name} ({member.role.replace("_", " ")})
                 </option>
-                {staffList
-                  ?.filter((member: any) => member.is_active !== false)
-                  .map((member: any) => (
-                    <option key={member.id} value={member.id} className="bg-ddt-surface">
-                      {member.full_name} ({member.role.replace("_", " ")})
-                    </option>
-                  ))}
-              </select>
-            )}
+              ))}
+            </select>
           </div>
 
           <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 pt-2">
@@ -160,7 +156,7 @@ export function StageAssignModal({
             <Button
               type="submit"
               className="bg-ddt-accent text-black font-semibold hover:bg-ddt-accent/90 order-1 sm:order-2"
-              disabled={assignMutation.isPending || loadingStaff}
+              disabled={assignMutation.isPending || isLoading}
             >
               {assignMutation.isPending ? (
                 <span className="flex items-center gap-2">

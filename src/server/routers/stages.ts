@@ -146,6 +146,16 @@ export const stagesRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "User tenant not found" });
       }
 
+      // Get the existing assignee before upserting
+      const { data: existingAssignment } = await adminClient
+        .from("project_stage_assignments")
+        .select("assigned_to")
+        .eq("project_id", input.projectId)
+        .eq("stage", input.stage)
+        .maybeSingle();
+
+      const oldAssigneeId = existingAssignment?.assigned_to;
+
       // Upsert the assignment (using the unique constraint on project_id + stage) and retrieve project details concurrently
       const [assignmentRes, projectRes] = await Promise.all([
         adminClient
@@ -175,20 +185,37 @@ export const stagesRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: assignmentRes.error.message });
       }
 
-      // If assigned to a user, create a notification
-      if (input.assignedTo) {
-        const projectCode = projectRes.data?.ndt_code || "Unknown";
-        const stageLabel = input.stage.split("_").map((w, idx) => idx === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
+      const projectCode = projectRes.data?.ndt_code || "Unknown";
+      const notifications = [];
 
-        await adminClient.from("notifications").insert({
+      const isDifferentPerson = oldAssigneeId && oldAssigneeId !== input.assignedTo;
+
+      if (isDifferentPerson) {
+        notifications.push({
+          tenant_id: activeTenantId,
+          user_id: oldAssigneeId,
+          type: "task_assigned",
+          title: "Task Reassigned",
+          body: `The ${input.stage} task for ${projectCode} has been reassigned to another team member.`,
+          related_project_id: input.projectId,
+          is_read: false,
+        });
+      }
+
+      if (input.assignedTo) {
+        notifications.push({
           tenant_id: activeTenantId,
           user_id: input.assignedTo,
           type: "task_assigned",
           title: "New Task Assigned",
-          body: `You have been assigned to the ${stageLabel} stage for project ${projectCode}`,
+          body: `You have been assigned the ${input.stage} task for ${projectCode}. Please start when ready.`,
           related_project_id: input.projectId,
           is_read: false,
         });
+      }
+
+      if (notifications.length > 0) {
+        await adminClient.from("notifications").insert(notifications);
       }
 
       return assignmentRes.data;

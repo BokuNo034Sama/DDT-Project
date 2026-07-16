@@ -48,7 +48,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
   const role = me?.role;
 
   // Get active staff members in the tenant for reassigning dropdown
-  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery();
 
   const { data: draft } = trpc.reportBot.getDraftByProject.useQuery(
     { projectId: project.id },
@@ -575,7 +575,7 @@ export function PipelineBar({ project }: PipelineBarProps) {
           onOpenChange={(open) => !open && setAssignStage(null)}
           projectId={project.id}
           stage={assignStage}
-          currentAssignedId={
+          currentAssigneeId={
             project.project_stage_assignments?.find((a) => a.stage === assignStage)?.assigned_to
           }
         />

@@ -63,7 +63,7 @@ export function SiteVisitModal({
   });
 
   // Get active staff members in the tenant
-  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery({ role: "staff" });
+  const { data: staffList, isLoading: loadingStaff } = trpc.staff.list.useQuery();
 
   // Get active equipment in the tenant
   const { data: equipmentList, isLoading: loadingEquipment } = trpc.equipment.listEquipment.useQuery(undefined, {

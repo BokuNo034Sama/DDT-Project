@@ -10,39 +10,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const staffRouter = router({
   // Get all staff in tenant
   list: managerProcedure
-    .input(
-      z.object({
-        role: z.enum(["lab_owner", "ops_manager", "staff"]).optional(),
-      }).optional()
-    )
-    .query(async ({ ctx, input }) => {
-      const adminClient = createAdminClient();
+    .query(async ({ ctx }) => {
+      const adminClient = createAdminClient()
 
-      const profile = await adminClient
-        .from("users")
-        .select("tenant_id")
-        .eq("id", ctx.userId)
-        .single();
+      const { data: currentUser } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
 
-      const activeTenantId = profile.data?.tenant_id;
-
-      let query = adminClient
-        .from("users")
-        .select("*")
-        .eq("tenant_id", activeTenantId)
-        .eq("is_active", true);
-
-      if (input?.role) {
-        query = query.eq("role", input.role);
-      }
-
-      const { data, error } = await query.order("full_name");
+      const { data, error } = await adminClient
+        .from('users')
+        .select('id, full_name, email, role, is_active')
+        .eq('tenant_id', currentUser?.tenant_id)
+        .eq('is_active', true)
+        .in('role', ['staff', 'ops_manager', 'lab_owner'])
+        .order('full_name', { ascending: true })
 
       if (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
       }
 
-      return data;
+      return data || []
     }),
 
   // Get current user profile and role
