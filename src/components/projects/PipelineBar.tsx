@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { UserPill } from "@/components/ui/UserPill";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { formatDuration } from "@/lib/efficiency";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LsmtlTrackingCard } from "./LsmtlTrackingCard";
+import { AvatarCircle } from "@/components/ui/AvatarCircle";
 import {
   Activity,
   Brush,
@@ -89,6 +90,29 @@ function ProofreadBotPanel({
     </span>
   );
 }
+
+const getInitials = (name: string) => {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+};
+
+const UpgradeHint = ({ stage }: { stage: string }) => {
+  const description = stage === "report_writing"
+    ? "Report Bot AI to generate draft reports automatically."
+    : "Proofread Bot AI to check reports against LSMTL guidelines.";
+  return (
+    <div className="upgrade-hint">
+      <span>✨ Pro plan includes {description}</span>
+      <Link href="/settings?tab=billing">
+        Upgrade to Pro →
+      </Link>
+    </div>
+  );
+};
 
 export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProps) {
   const router = useRouter();
@@ -258,14 +282,19 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
         {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-              <UserPill
-                name={assignment.assigned_user?.full_name || "Assigned Technician"}
-                avatarInitials={(assignment.assigned_user?.full_name || "Assigned Technician")
-                  .split(" ")
-                  .map((n: string) => n[0])
-                  .join("")
-                  .substring(0, 2)}
-              />
+              <div className="staff-info">
+                <div className="staff-avatar">
+                  <AvatarCircle initials={getInitials(assignment.assigned_user?.full_name || "Assigned Technician")} />
+                </div>
+                <div className="staff-details">
+                  <p className="staff-name">
+                    {assignment.assigned_user?.full_name || "Assigned Technician"}
+                  </p>
+                  <p className="staff-role">
+                    {(assignment.assigned_user?.role || "technician").replace(/_/g, ' ')}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {isManager && (
@@ -381,7 +410,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
         </div>
 
         {/* 5-Stage Horizontal/Vertical Pipeline */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 relative font-sans">
+        <div className="pipeline-container font-sans">
           {stagesConfig.map((stage, index) => {
             const assignment = project.project_stage_assignments?.find((a) => a.stage === stage.id);
             const displayStatus = getStageDisplayStatus(stage.id, assignment);
@@ -428,244 +457,230 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
               }
             }
 
+            const connectorStatus =
+              displayStatus === "completed"
+                ? "completed"
+                : displayStatus === "in_progress"
+                ? "active"
+                : "pending";
+
             return (
-              <div
-                key={stage.id}
-                className={cn(
-                  "border rounded-xl p-4 flex flex-col justify-between min-h-[160px] relative transition-all duration-300",
-                  borderClass,
-                  glowClass
-                )}
-              >
-                {/* Stage Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className={cn(
-                      "p-1.5 rounded-lg border",
-                      isCompleted ? "bg-emerald-950/50 border-emerald-500/30 text-emerald-400" :
-                      isFailed ? "bg-red-950/50 border-red-500/30 text-red-400" :
-                      isInProgress ? "bg-ddt-accent-bg border-ddt-accent/30 text-ddt-accent" :
-                      "bg-ddt-raised border-ddt-border text-ddt-muted"
-                    )}>
-                      <stage.icon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-ddt-muted uppercase tracking-wider block">
-                        Stage {index + 1}
-                      </span>
-                      <span className="font-syne font-bold text-ddt-text text-sm">
-                        {stage.label}
-                      </span>
+              <Fragment key={stage.id}>
+                <div
+                  className={cn(
+                    "pipeline-stage-card transition-all duration-300",
+                    borderClass,
+                    glowClass
+                  )}
+                >
+                  {/* 1. Stage Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "p-1.5 rounded-lg border",
+                        isCompleted ? "bg-emerald-950/50 border-emerald-500/30 text-emerald-400" :
+                        isFailed ? "bg-red-950/50 border-red-500/30 text-red-400" :
+                        isInProgress ? "bg-ddt-accent-bg border-ddt-accent/30 text-ddt-accent" :
+                        "bg-ddt-raised border-ddt-border text-ddt-muted"
+                      )}>
+                        <stage.icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-ddt-muted uppercase tracking-wider block">
+                          Stage {index + 1}
+                        </span>
+                        <span className="font-syne font-bold text-ddt-text text-sm">
+                          {stage.label}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Content Section */}
-                <div className="my-4 flex-1 flex flex-col justify-center">
-                  {stage.id === "report_writing" ? (
-                    isProPlan ? (
-                      <div className="space-y-3">
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
-                          Report Writing Mode
-                        </p>
-                        <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setReportMode("staff")}
-                            className={cn(
-                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
-                              reportMode === "staff"
-                                ? "bg-ddt-accent text-black shadow-md"
-                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
-                            )}
-                          >
-                            👤 Staff
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setReportMode("ai")}
-                            className={cn(
-                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
-                              reportMode === "ai"
-                                ? "bg-ddt-accent text-black shadow-md"
-                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
-                            )}
-                          >
-                            🤖 Report Bot
-                          </button>
-                        </div>
-
-                        {reportMode === "staff" ? (
-                          renderStaffAssignSection(stage, assignment)
-                        ) : (
-                          <div className="mt-2">
-                            <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {renderStaffAssignSection(stage, assignment)}
-                        <div 
-                          className="mt-3 flex flex-col gap-1.5 text-[11px]"
-                          style={{
-                            background: "rgba(163, 230, 53, 0.06)",
-                            border: "1px solid rgba(163, 230, 53, 0.2)",
-                            borderRadius: "8px",
-                            padding: "8px 12px",
-                          }}
-                        >
-                          <span className="text-ddt-muted leading-snug">
-                            ✨ Pro plan includes Report Bot AI to generate draft reports automatically.
+                  {/* 2. Assigned Staff Section */}
+                  <div className="my-3 flex-1 flex flex-col justify-center">
+                    {stage.id === "lsmtl_upload" ? (
+                      <div className="text-center">
+                        {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
+                          <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Report Uploaded Successfully</span>
                           </span>
-                          <Link
-                            href="/settings?tab=billing"
-                            className="text-xs font-bold hover:underline"
-                            style={{ color: "#A3E635" }}
-                          >
-                            Upgrade to Pro →
-                          </Link>
-                        </div>
-                      </div>
-                    )
-                  ) : stage.id === "proofreading" ? (
-                    isProPlan ? (
-                      <div className="space-y-3">
-                        <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
-                          Proofreading Mode
-                        </p>
-                        <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setProofMode("staff")}
-                            className={cn(
-                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
-                              proofMode === "staff"
-                                ? "bg-ddt-accent text-black shadow-md"
-                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
-                            )}
-                          >
-                            👤 Staff
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setProofMode("ai")}
-                            className={cn(
-                              "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
-                              proofMode === "ai"
-                                ? "bg-ddt-accent text-black shadow-md"
-                                : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
-                            )}
-                          >
-                            🤖 Proofread Bot
-                          </button>
-                        </div>
-
-                        {proofMode === "staff" ? (
-                          renderStaffAssignSection(stage, assignment)
-                        ) : (
-                          <div className="mt-2">
-                            <ProofreadBotPanel
-                              projectId={project.id}
-                              project={project}
-                              isManager={isManager}
-                              setIsProofOpen={setIsProofOpen}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {renderStaffAssignSection(stage, assignment)}
-                        <div 
-                          className="mt-3 flex flex-col gap-1.5 text-[11px]"
-                          style={{
-                            background: "rgba(163, 230, 53, 0.06)",
-                            border: "1px solid rgba(163, 230, 53, 0.2)",
-                            borderRadius: "8px",
-                            padding: "8px 12px",
-                          }}
-                        >
-                          <span className="text-ddt-muted leading-snug">
-                            ✨ Pro plan includes Proofread Bot AI to check reports against LSMTL guidelines.
-                          </span>
-                          <Link
-                            href="/settings?tab=billing"
-                            className="text-xs font-bold hover:underline"
-                            style={{ color: "#A3E635" }}
-                          >
-                            Upgrade to Pro →
-                          </Link>
-                        </div>
-                      </div>
-                    )
-                  ) : stage.id === "lsmtl_upload" ? (
-                    <div className="my-4 flex-1 flex flex-col justify-center text-center">
-                      {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
-                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Report Uploaded Successfully</span>
-                        </span>
-                      ) : project.status === "proof_ready" || project.status === "report_done" ? (
-                        <div className="text-center space-y-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950/50 text-amber-400 border border-amber-500/30">
-                            Awaiting Upload
-                          </span>
+                        ) : project.status === "proof_ready" || project.status === "report_done" ? (
                           <p className="text-[11px] text-ddt-muted max-w-[180px] mx-auto leading-normal">
                             Awaiting manager to upload the finalized proofread report to LSMTL.
                           </p>
+                        ) : (
+                          <span className="text-xs text-ddt-faint italic font-medium font-sans text-center block">
+                            Awaiting previous stages
+                          </span>
+                        )}
+                      </div>
+                    ) : stage.id === "report_writing" && isProPlan && reportMode === "ai" ? (
+                      <div className="staff-info">
+                        <div className="staff-avatar">
+                          <AvatarCircle initials="AI" className="bg-ddt-accent text-black" />
+                        </div>
+                        <div className="staff-details">
+                          <p className="staff-name">Report Bot</p>
+                          <p className="staff-role">AI Generator</p>
+                        </div>
+                      </div>
+                    ) : stage.id === "proofreading" && isProPlan && proofMode === "ai" ? (
+                      <div className="staff-info">
+                        <div className="staff-avatar">
+                          <AvatarCircle initials="AI" className="bg-ddt-accent text-black" />
+                        </div>
+                        <div className="staff-details">
+                          <p className="staff-name">Proofread Bot</p>
+                          <p className="staff-role">AI Checker</p>
+                        </div>
+                      </div>
+                    ) : (
+                      renderStaffAssignSection(stage, assignment)
+                    )}
+                  </div>
+
+                  {/* 3. Status Row */}
+                  <div className="flex items-center justify-between text-[10px] text-ddt-muted py-2 border-y border-ddt-border/30 font-mono">
+                    <div className="flex items-center gap-1.5">
+                      {statusIcon}
+                      <span className="font-semibold">{statusLabel}</span>
+                    </div>
+                    {isCompleted && assignment?.started_at && assignment?.completed_at && (
+                      <span className="text-ddt-accent font-semibold">
+                        {formatDuration(assignment.started_at, assignment.completed_at)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 4. Action Area */}
+                  <div className="card-action-area">
+                    {stage.id === "report_writing" ? (
+                      isProPlan ? (
+                        <div className="space-y-3">
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                            Report Writing Mode
+                          </p>
+                          <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setReportMode("staff")}
+                              className={cn(
+                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                reportMode === "staff"
+                                  ? "bg-ddt-accent text-black shadow-md"
+                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                              )}
+                            >
+                              👤 Staff
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReportMode("ai")}
+                              className={cn(
+                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                reportMode === "ai"
+                                  ? "bg-ddt-accent text-black shadow-md"
+                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                              )}
+                            >
+                              🤖 Report Bot
+                            </button>
+                          </div>
+
+                          {reportMode === "ai" && (
+                            <div className="mt-2">
+                              <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-xs text-ddt-faint italic font-medium font-sans text-center block">
-                          Awaiting previous stages
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    renderStaffAssignSection(stage, assignment)
-                  )}
-                </div>
+                        <UpgradeHint stage="report_writing" />
+                      )
+                    ) : stage.id === "proofreading" ? (
+                      isProPlan ? (
+                        <div className="space-y-3">
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                            Proofreading Mode
+                          </p>
+                          <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setProofMode("staff")}
+                              className={cn(
+                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                proofMode === "staff"
+                                  ? "bg-ddt-accent text-black shadow-md"
+                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                              )}
+                            >
+                              👤 Staff
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProofMode("ai")}
+                              className={cn(
+                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                proofMode === "ai"
+                                  ? "bg-ddt-accent text-black shadow-md"
+                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                              )}
+                            >
+                              🤖 Proofread Bot
+                            </button>
+                          </div>
 
-                {/* Stage Footer (Status & Timestamps) */}
-                <div className="flex items-center justify-between text-[10px] text-ddt-muted pt-2 border-t border-ddt-border/30 font-mono">
-                  <div className="flex items-center gap-1.5">
-                    {statusIcon}
-                    <span className="font-semibold">{statusLabel}</span>
+                          {proofMode === "ai" && (
+                            <div className="mt-2">
+                              <ProofreadBotPanel
+                                projectId={project.id}
+                                project={project}
+                                isManager={isManager}
+                                setIsProofOpen={setIsProofOpen}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <UpgradeHint stage="proofreading" />
+                      )
+                    ) : null}
                   </div>
-                  {isCompleted && assignment?.started_at && assignment?.completed_at && (
-                    <span className="text-ddt-accent font-semibold">
-                      {formatDuration(assignment.started_at, assignment.completed_at)}
-                    </span>
-                  )}
                 </div>
-              </div>
+                {index < stagesConfig.length - 1 && (
+                  <div className={`pipeline-connector ${connectorStatus}`}>
+                    <span className="desktop-arrow">→</span>
+                    <span className="mobile-arrow">↓</span>
+                  </div>
+                )}
+              </Fragment>
             );
           })}
+
+          {/* LSMTL Tracking Card */}
+          {["report_uploaded", "report_verified", "report_delivered"].includes(project.status || "") && isManager && (
+            <LsmtlTrackingCard
+              project={project}
+              onStatusUpdate={(status) => {
+                if (status) {
+                  updateLsmtlStatus.mutate({
+                    projectId: project.id,
+                    lsmtlStatus: status as any,
+                  });
+                }
+              }}
+              onProjectComplete={() => {
+                utils.projects.list.invalidate();
+                utils.projects.getDashboardData.invalidate();
+                utils.projects.getById.invalidate({
+                  id: project.id,
+                });
+                router.push("/projects");
+              }}
+            />
+          )}
         </div>
       </div>
-
-      {/* LSMTL Tracking Card */}
-      {["report_uploaded", "report_verified", "report_delivered"].includes(project.status || "") && isManager && (
-        <LsmtlTrackingCard
-          project={project}
-          onStatusUpdate={(status) => {
-            if (status) {
-              updateLsmtlStatus.mutate({
-                projectId: project.id,
-                lsmtlStatus: status as any,
-              });
-            }
-          }}
-          onProjectComplete={() => {
-            utils.projects.list.invalidate();
-            utils.projects.getDashboardData.invalidate();
-            utils.projects.getById.invalidate({
-              id: project.id,
-            });
-            router.push("/projects");
-          }}
-        />
-      )}
 
       {/* Proof Review History Audit Trail (Below Pipeline Bar) */}
       {proofReviews.length > 0 && (

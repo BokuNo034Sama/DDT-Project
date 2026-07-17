@@ -73,13 +73,7 @@ export function LsmtlTrackingCard({
 
   return (
     <div
-      className="shadow-xl transition-all duration-300 w-full"
-      style={{
-        background: "var(--color-bg-surface)", // #141C2E
-        border: "1px solid var(--color-border)", // #2A3550
-        borderRadius: "12px",
-        padding: "24px",
-      }}
+      className="lsmtl-card shadow-xl transition-all duration-300 w-full"
     >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-ddt-border/30">
