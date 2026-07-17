@@ -8,6 +8,8 @@ import { StageAssignModal } from "./StageAssignModal";
 import { ProofReviewModal } from "./ProofReviewModal";
 import { formatDuration } from "@/lib/efficiency";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LsmtlTrackingCard } from "./LsmtlTrackingCard";
 import {
   Activity,
   Brush,
@@ -89,6 +91,7 @@ function ProofreadBotPanel({
 }
 
 export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProps) {
+  const router = useRouter();
   const isOnline = useNetworkStatus();
   const { toast } = useToast();
   const utils = trpc.useUtils();
@@ -131,6 +134,27 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
       toast({
         title: "Reassignment Failed",
         description: err.message || "Failed to reassign task.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLsmtlStatus = trpc.projects.updateLsmtlStatus.useMutation({
+    onSuccess: (data, variables) => {
+      toast({
+        title: variables.lsmtlStatus === "report_collected" ? "Project Completed" : "LSMTL Status Updated",
+        description: variables.lsmtlStatus === "report_collected"
+          ? "Project marked as delivered."
+          : "The status has been successfully updated.",
+      });
+      if (variables.lsmtlStatus !== "report_collected") {
+        utils.projects.getById.invalidate({ id: project.id });
+      }
+    },
+    onError: (err) => {
+      toast({
+        title: "Update Failed",
+        description: err.message || "Failed to update LSMTL status.",
         variant: "destructive",
       });
     },
@@ -475,7 +499,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                           renderStaffAssignSection(stage, assignment)
                         ) : (
                           <div className="mt-2">
-                            <ReportBotPanel project={project} />
+                            <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
                           </div>
                         )}
                       </div>
@@ -620,6 +644,29 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
         </div>
       </div>
 
+      {/* LSMTL Tracking Card */}
+      {["report_uploaded", "report_verified", "report_delivered"].includes(project.status || "") && isManager && (
+        <LsmtlTrackingCard
+          project={project}
+          onStatusUpdate={(status) => {
+            if (status) {
+              updateLsmtlStatus.mutate({
+                projectId: project.id,
+                lsmtlStatus: status as any,
+              });
+            }
+          }}
+          onProjectComplete={() => {
+            utils.projects.list.invalidate();
+            utils.projects.getDashboardData.invalidate();
+            utils.projects.getById.invalidate({
+              id: project.id,
+            });
+            router.push("/projects");
+          }}
+        />
+      )}
+
       {/* Proof Review History Audit Trail (Below Pipeline Bar) */}
       {proofReviews.length > 0 && (
         <div
@@ -696,7 +743,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
           projectId={project.id}
           stage={assignStage}
           currentAssigneeId={
-            project.project_stage_assignments?.find((a) => a.stage === assignStage)?.assigned_to
+            project.project_stage_assignments?.find((a) => a.stage === assignStage)?.assigned_to ?? undefined
           }
         />
       )}
@@ -706,8 +753,6 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
         isOpen={isProofOpen}
         onOpenChange={setIsProofOpen}
         projectId={project.id}
-        projectCode={project.ndt_code || ""}
-        clientName={project.client_name || ""}
       />
     </div>
   );

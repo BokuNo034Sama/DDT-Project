@@ -86,7 +86,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         project={project}
         stages={project.project_stage_assignments || []}
         userRole={role || "staff"}
-        plan={subscription?.plan ?? "free"}
+        plan={(subscription?.plan as "free" | "starter" | "pro") ?? "free"}
       />
 
       {/* Site Visits Log */}

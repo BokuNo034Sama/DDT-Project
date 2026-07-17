@@ -24,7 +24,7 @@ export function ProjectsTable() {
       limit: 20,
     },
     {
-      keepPreviousData: true,
+      placeholderData: (prev) => prev,
     }
   );
 

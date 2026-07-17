@@ -38,6 +38,76 @@ export interface Database {
           updated_at?: string;
         };
       };
+      subscriptions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          paystack_customer_code: string | null;
+          paystack_subscription_code: string | null;
+          plan: string | null;
+          status: "trial" | "active" | "inactive" | "past_due" | "cancelled" | null;
+          trial_ends_at: string | null;
+          current_period_end: string | null;
+          amount_kobo: number | null;
+          created_at: string;
+          updated_at: string;
+          plan_name: string | null;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          paystack_customer_code?: string | null;
+          paystack_subscription_code?: string | null;
+          plan?: string | null;
+          status?: "trial" | "active" | "inactive" | "past_due" | "cancelled" | null;
+          trial_ends_at?: string | null;
+          current_period_end?: string | null;
+          amount_kobo?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          plan_name?: string | null;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          paystack_customer_code?: string | null;
+          paystack_subscription_code?: string | null;
+          plan?: string | null;
+          status?: "trial" | "active" | "inactive" | "past_due" | "cancelled" | null;
+          trial_ends_at?: string | null;
+          current_period_end?: string | null;
+          amount_kobo?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          plan_name?: string | null;
+        };
+      };
+      admin_audit_log: {
+        Row: {
+          id: string;
+          admin_id: string;
+          action: string;
+          target_tenant_id: string | null;
+          details: any | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_id: string;
+          action: string;
+          target_tenant_id?: string | null;
+          details?: any | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          admin_id?: string;
+          action?: string;
+          target_tenant_id?: string | null;
+          details?: any | null;
+          created_at?: string;
+        };
+      };
       users: {
         Row: {
           id: string;
@@ -99,6 +169,12 @@ export interface Database {
             | "report_verified"
             | "report_delivered"
             | null;
+          lsmtl_status:
+            | "pending"
+            | "report_rejected"
+            | "mismatched_report"
+            | "report_collected"
+            | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -128,6 +204,12 @@ export interface Database {
             | "report_verified"
             | "report_delivered"
             | null;
+          lsmtl_status?:
+            | "pending"
+            | "report_rejected"
+            | "mismatched_report"
+            | "report_collected"
+            | null;
           created_by: string;
           created_at?: string;
           updated_at?: string;
@@ -156,6 +238,12 @@ export interface Database {
             | "report_uploaded"
             | "report_verified"
             | "report_delivered"
+            | null;
+          lsmtl_status?:
+            | "pending"
+            | "report_rejected"
+            | "mismatched_report"
+            | "report_collected"
             | null;
           created_by?: string;
           created_at?: string;
@@ -530,6 +618,11 @@ export interface Database {
       };
     };
     Enums: {
+      lsmtl_status_enum:
+        | "pending"
+        | "report_rejected"
+        | "mismatched_report"
+        | "report_collected";
       subscription_status_enum: "trial" | "active" | "inactive";
       user_role_enum: "super_admin" | "lab_owner" | "ops_manager" | "staff";
       project_status_enum:

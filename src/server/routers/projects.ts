@@ -438,6 +438,107 @@ export const projectsRouter = router({
     return data;
   }),
 
+  updateLsmtlStatus: managerProcedure
+    .input(z.object({
+      projectId: z.string(),
+      lsmtlStatus: z.enum([
+        'pending',
+        'report_rejected',
+        'mismatched_report',
+        'report_collected'
+      ])
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient()
+
+      const { data: user } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
+
+      // Update LSMTL status
+      const { error } = await adminClient
+        .from('projects')
+        .update({
+          lsmtl_status: input.lsmtlStatus,
+          // If collected → also update project status
+          ...(input.lsmtlStatus === 'report_collected'
+            ? { status: 'report_delivered' }
+            : {})
+        })
+        .eq('id', input.projectId)
+        .eq('tenant_id', user?.tenant_id)
+
+      if (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
+      }
+
+      // Log status history if delivered
+      if (input.lsmtlStatus === 'report_collected') {
+        await adminClient
+          .from('status_history')
+          .insert({
+            project_id: input.projectId,
+            tenant_id: user?.tenant_id,
+            from_status: 'report_verified',
+            to_status: 'report_delivered',
+            changed_by: ctx.userId,
+            notes: 'Report collected from LSMTL portal'
+          })
+
+        // Query lab owner(s) to notify
+        const { data: labOwners } = await adminClient
+          .from('users')
+          .select('id')
+          .eq('tenant_id', user?.tenant_id)
+          .eq('role', 'lab_owner')
+
+        const { data: project } = await adminClient
+          .from('projects')
+          .select('ndt_code, client_name')
+          .eq('id', input.projectId)
+          .single()
+
+        const ndtCode = project?.ndt_code || ''
+        const clientName = project?.client_name || ''
+
+        if (labOwners && labOwners.length > 0) {
+          const { sendNotification } = await import("@/lib/notifications/send");
+          for (const owner of labOwners) {
+            try {
+              await sendNotification({
+                supabase: adminClient,
+                tenantId: user?.tenant_id!,
+                userId: owner.id,
+                type: 'report_delivered',
+                title: 'Project Complete',
+                message: `${ndtCode} — ${clientName} has been marked as delivered. Project complete.`,
+                link: `/projects/${input.projectId}`
+              });
+            } catch (e) {
+              console.error("Error sending notification via helper:", e);
+              // Direct insert fallback
+              await adminClient.from('notifications').insert({
+                tenant_id: user?.tenant_id!,
+                user_id: owner.id,
+                type: 'report_delivered',
+                title: 'Project Complete',
+                body: `${ndtCode} — ${clientName} has been marked as delivered. Project complete.`,
+                related_project_id: input.projectId,
+                is_read: false
+              });
+            }
+          }
+        }
+      }
+
+      return { success: true }
+    }),
+
   delete: managerProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

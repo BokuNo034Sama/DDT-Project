@@ -2,6 +2,8 @@ import { Database } from "./database";
 
 export type ProjectStatus =
   Database["public"]["Tables"]["projects"]["Row"]["status"];
+export type LsmtlStatus =
+  Database["public"]["Tables"]["projects"]["Row"]["lsmtl_status"];
 export type StageType =
   Database["public"]["Tables"]["project_stage_assignments"]["Row"]["stage"];
 export type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];

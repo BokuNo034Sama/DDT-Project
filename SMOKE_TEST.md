@@ -62,3 +62,19 @@ Before any major deployment, please verify the following critical paths.
 - [ ] Upload a revised report via the standard staff upload interface.
 - [ ] Verify the project status advances to `proof_ready`.
 - [ ] In the pipeline bar, verify the "Send to Proofread Bot" button is visible and successfully triggers the V3 Proofread review scanning window.
+
+## 8. LSMTL Tracking Card
+- [ ] Upload report → project at report_uploaded
+- [ ] LSMTL tracking card appears at bottom of pipeline
+- [ ] Click "Report Rejected" → button highlights red
+- [ ] Info text appears below rejected button
+- [ ] Click "Mismatched Report" → previous deselects, new button highlights amber
+- [ ] Click "Report Collected" → confirmation modal opens
+- [ ] Modal shows NDT code input
+- [ ] Type wrong code → Complete button stays disabled
+- [ ] Type correct code → Complete button activates
+- [ ] Click Complete → project status → report_delivered
+- [ ] Delivered chip shows green on project list
+- [ ] Lab owner receives notification
+- [ ] LSMTL card shows "Project Delivered ✓" state
+- [ ] All buttons disabled after delivery
