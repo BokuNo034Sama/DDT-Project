@@ -277,76 +277,68 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
   };
 
   const renderStaffAssignSection = (stage: any, assignment: any) => {
+    const assignedName = assignment?.assigned_user?.full_name || "Assigned Technician";
+    const assignedRole = (assignment?.assigned_user?.role || "technician").replace(/_/g, " ");
+
     return (
       <div className="my-2">
         {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="staff-info">
-                <div className="staff-avatar">
-                  <AvatarCircle initials={getInitials(assignment.assigned_user?.full_name || "Assigned Technician")} />
-                </div>
-                <div className="staff-details">
-                  <p className="staff-name">
-                    {assignment.assigned_user?.full_name || "Assigned Technician"}
-                  </p>
-                  <p className="staff-role">
-                    {(assignment.assigned_user?.role || "technician").replace(/_/g, ' ')}
-                  </p>
-                </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 py-2 px-1">
+              <AvatarCircle initials={getInitials(assignedName)} className="bg-blue-600 text-white font-bold w-9 h-9" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-100">{assignedName}</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">{assignedRole}</span>
               </div>
             </div>
 
             {isManager && (
-              <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-ddt-border/20 relative reassign-container">
-                {/* Reassign dropdown triggering */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
-                    disabled={!isOnline || reassignMutation.isPending}
-                    className={cn(
-                      "w-full flex items-center justify-center space-x-2 py-2 px-4 border border-dashed border-slate-700 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-xl text-xs font-medium text-slate-300 transition-all group",
-                      (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {reassignMutation.isPending && activeReassignId === assignment.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
-                    ) : (
-                      <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
-                    )}
-                    <span>Reassign Staff</span>
-                  </button>
-
-                  {activeReassignId === assignment.id && (
-                    <div className="absolute z-50 left-0 right-0 mt-1 bg-ddt-surface border border-ddt-border rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                      {loadingStaff ? (
-                        <div className="flex items-center gap-2 p-2 text-xs text-ddt-muted justify-center">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-ddt-accent" />
-                          <span>Loading staff...</span>
-                        </div>
-                      ) : (
-                        staffList
-                          ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
-                          .map((member: any) => (
-                            <button
-                              key={member.id}
-                              type="button"
-                              onClick={() => {
-                                reassignMutation.mutate({
-                                  taskId: assignment.id,
-                                  newStaffId: member.id,
-                                });
-                              }}
-                              className="w-full text-left px-2.5 py-1.5 text-xs text-ddt-text hover:bg-ddt-accent hover:text-black rounded-md transition-colors duration-150"
-                            >
-                              {member.full_name}
-                            </button>
-                          ))
-                      )}
-                    </div>
+              <div className="relative reassign-container">
+                <button
+                  type="button"
+                  onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
+                  disabled={!isOnline || reassignMutation.isPending}
+                  className={cn(
+                    "w-full flex items-center justify-center space-x-2 py-1.5 px-3 border border-dashed border-slate-800 hover:border-slate-600 bg-slate-950/60 hover:bg-slate-900 rounded-lg text-xs font-medium text-slate-300 transition-all group",
+                    (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
                   )}
-                </div>
+                >
+                  {reassignMutation.isPending && activeReassignId === assignment.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                  ) : (
+                    <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+                  )}
+                  <span>Reassign Staff</span>
+                </button>
+
+                {activeReassignId === assignment.id && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-1 max-h-40 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                    {loadingStaff ? (
+                      <div className="flex items-center gap-2 p-2 text-xs text-slate-400 justify-center">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                        <span>Loading staff...</span>
+                      </div>
+                    ) : (
+                      staffList
+                        ?.filter((member: any) => member.is_active !== false && member.id !== assignment.assigned_to)
+                        .map((member: any) => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => {
+                              reassignMutation.mutate({
+                                taskId: assignment.id,
+                                newStaffId: member.id,
+                              });
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-md transition-colors duration-150"
+                          >
+                            {member.full_name}
+                          </button>
+                        ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -358,17 +350,15 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                 onClick={() => isOnline && setAssignStage(stage.id)}
                 disabled={!isOnline}
                 className={cn(
-                  "border border-dashed border-ddt-border text-ddt-muted transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg",
-                  isOnline
-                    ? "bg-transparent hover:bg-ddt-accent/5 hover:border-ddt-accent hover:text-ddt-accent"
-                    : "cursor-not-allowed opacity-50 bg-ddt-input"
+                  "border border-dashed border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 transition-all duration-200 text-xs w-full py-2 flex items-center justify-center gap-1.5 h-auto rounded-lg bg-transparent",
+                  !isOnline && "cursor-not-allowed opacity-50"
                 )}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>Assign Staff</span>
               </Button>
             ) : (
-              <span className="text-xs text-ddt-faint italic font-medium font-sans">
+              <span className="text-xs text-slate-400 italic font-medium font-sans">
                 Unassigned
               </span>
             )}
@@ -397,7 +387,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
       >
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-syne font-bold uppercase tracking-wider text-ddt-muted">
+            <h2 className="text-sm font-syne font-bold uppercase tracking-wider text-slate-400">
               Project Pipeline
             </h2>
             {faultCount > 0 && (
@@ -419,9 +409,9 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
             const isInProgress = displayStatus === "in_progress";
 
             // Colors mapping
-            let borderClass = "border-ddt-border";
+            let borderClass = "border-slate-800";
             let glowClass = "";
-            let statusIcon = <Clock className="w-4 h-4 text-ddt-faint" />;
+            let statusIcon = <Clock className="w-4 h-4 text-slate-400" />;
             let statusLabel = "Awaiting Start";
 
             if (isCompleted) {
@@ -433,9 +423,9 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
               statusIcon = <AlertCircle className="w-4 h-4 text-red-400" />;
               statusLabel = "Revision Needed";
             } else if (isInProgress) {
-              borderClass = "border-ddt-accent/60 bg-ddt-accent/5";
-              glowClass = "shadow-lg shadow-ddt-accent/5 ring-1 ring-ddt-accent/30";
-              statusIcon = <Loader2 className="w-4 h-4 text-ddt-accent animate-spin" />;
+              borderClass = "border-blue-500/50 bg-blue-950/10";
+              glowClass = "shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/30";
+              statusIcon = <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
               statusLabel = "In Progress";
             }
 
@@ -446,13 +436,13 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                 statusIcon = <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
                 statusLabel = "Report Uploaded";
               } else if (status === "proof_ready" || status === "report_done") {
-                borderClass = "border-ddt-accent/60 bg-ddt-accent/5";
-                glowClass = "shadow-lg shadow-ddt-accent/5 ring-1 ring-ddt-accent/30";
-                statusIcon = <Clock className="w-4 h-4 text-ddt-accent" />;
+                borderClass = "border-blue-500/50 bg-blue-950/10";
+                glowClass = "shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/30";
+                statusIcon = <Clock className="w-4 h-4 text-blue-400" />;
                 statusLabel = "Awaiting Upload";
               } else {
-                borderClass = "border-ddt-border";
-                statusIcon = <Clock className="w-4 h-4 text-ddt-faint" />;
+                borderClass = "border-slate-800";
+                statusIcon = <Clock className="w-4 h-4 text-slate-400" />;
                 statusLabel = "Awaiting previous stages";
               }
             }
@@ -468,7 +458,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
               <Fragment key={stage.id}>
                 <div
                   className={cn(
-                    "bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 flex flex-col justify-between min-h-[320px] transition-all shadow-md group",
+                    "flex flex-col justify-between h-[360px] bg-slate-900/50 border border-slate-800 rounded-2xl p-4 transition-all hover:border-slate-700",
                     borderClass,
                     glowClass
                   )}
@@ -495,7 +485,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                   </div>
 
                   {/* 2. Assigned Staff Section */}
-                  <div className="my-2 bg-slate-950/40 border border-slate-800/60 rounded-lg p-2.5 flex-1 flex flex-col justify-center">
+                  <div className="my-2 flex-1 flex flex-col justify-center">
                     {stage.id === "lsmtl_upload" ? (
                       <div className="text-center">
                         {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
@@ -504,33 +494,30 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                             <span>Report Uploaded Successfully</span>
                           </span>
                         ) : project.status === "proof_ready" || project.status === "report_done" ? (
-                          <p className="text-[11px] text-ddt-muted max-w-[180px] mx-auto leading-normal">
+                          <p className="text-[11px] text-slate-400 max-w-[180px] mx-auto leading-normal">
                             Awaiting manager to upload the finalized proofread report to LSMTL.
                           </p>
                         ) : (
-                          <span className="text-xs text-ddt-faint italic font-medium font-sans text-center block">
-                            Awaiting previous stages
-                          </span>
+                          <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-2">
+                            <Upload className="w-8 h-8 text-slate-600"/>
+                            <span className="text-xs font-medium text-slate-400">Awaiting prior stage completion</span>
+                          </div>
                         )}
                       </div>
                     ) : stage.id === "report_writing" && isProPlan && reportMode === "ai" ? (
-                      <div className="staff-info">
-                        <div className="staff-avatar">
-                          <AvatarCircle initials="AI" className="bg-ddt-accent text-black" />
-                        </div>
-                        <div className="staff-details">
-                          <p className="staff-name">Report Bot</p>
-                          <p className="staff-role">AI Generator</p>
+                      <div className="flex items-center gap-3 py-2 px-1">
+                        <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-9 h-9" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-100">Report Bot</span>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase">AI Generator</span>
                         </div>
                       </div>
                     ) : stage.id === "proofreading" && isProPlan && proofMode === "ai" ? (
-                      <div className="staff-info">
-                        <div className="staff-avatar">
-                          <AvatarCircle initials="AI" className="bg-ddt-accent text-black" />
-                        </div>
-                        <div className="staff-details">
-                          <p className="staff-name">Proofread Bot</p>
-                          <p className="staff-role">AI Checker</p>
+                      <div className="flex items-center gap-3 py-2 px-1">
+                        <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-9 h-9" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-100">Proofread Bot</span>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase">AI Checker</span>
                         </div>
                       </div>
                     ) : (
@@ -539,13 +526,13 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                   </div>
 
                   {/* 3. Status Row */}
-                  <div className="flex items-center justify-between text-[10px] text-ddt-muted py-2 border-y border-ddt-border/30 font-mono">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 py-2 border-y border-slate-800/60 font-mono">
                     <div className="flex items-center gap-1.5">
                       {statusIcon}
                       <span className="font-semibold">{statusLabel}</span>
                     </div>
                     {isCompleted && assignment?.started_at && assignment?.completed_at && (
-                      <span className="text-ddt-accent font-semibold">
+                      <span className="text-blue-400 font-semibold">
                         {formatDuration(assignment.started_at, assignment.completed_at)}
                       </span>
                     )}
@@ -555,18 +542,18 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                   <div className="card-action-area">
                     {stage.id === "report_writing" ? (
                       isProPlan ? (
-                        <div className="space-y-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">
+                        <div className="space-y-1.5 mt-auto">
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
                             Report Writing Mode
-                          </p>
-                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-lg border border-slate-800 gap-1 mt-2">
+                          </span>
+                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
                             <button
                               type="button"
                               onClick={() => setReportMode("staff")}
                               className={cn(
-                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
+                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                                 reportMode === "staff"
-                                  ? "bg-blue-600 text-white shadow-sm"
+                                  ? "bg-blue-600 text-white shadow-md"
                                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
@@ -576,9 +563,9 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                               type="button"
                               onClick={() => setReportMode("ai")}
                               className={cn(
-                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
+                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                                 reportMode === "ai"
-                                  ? "bg-blue-600 text-white shadow-sm"
+                                  ? "bg-blue-600 text-white shadow-md"
                                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
@@ -597,18 +584,18 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                       )
                     ) : stage.id === "proofreading" ? (
                       isProPlan ? (
-                        <div className="space-y-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">
+                        <div className="space-y-1.5 mt-auto">
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
                             Proofreading Mode
-                          </p>
-                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-lg border border-slate-800 gap-1 mt-2">
+                          </span>
+                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
                             <button
                               type="button"
                               onClick={() => setProofMode("staff")}
                               className={cn(
-                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
+                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                                 proofMode === "staff"
-                                  ? "bg-blue-600 text-white shadow-sm"
+                                  ? "bg-blue-600 text-white shadow-md"
                                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
@@ -618,9 +605,9 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                               type="button"
                               onClick={() => setProofMode("ai")}
                               className={cn(
-                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
+                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                                 proofMode === "ai"
-                                  ? "bg-blue-600 text-white shadow-sm"
+                                  ? "bg-blue-600 text-white shadow-md"
                                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
