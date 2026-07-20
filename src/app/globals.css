@@ -99,12 +99,12 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  align-items: stretch;  /* all cards same height */
+  align-items: stretch;
 }
 
 @media (min-width: 768px) {
   .pipeline-container {
-    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

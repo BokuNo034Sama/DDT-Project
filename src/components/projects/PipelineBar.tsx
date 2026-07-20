@@ -553,7 +553,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                             type="button"
                             onClick={() => setReportMode("staff")}
                             className={cn(
-                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              "py-1 px-1.5 rounded-lg text-[10px] xl:text-xs font-bold transition-all flex items-center justify-center text-center whitespace-nowrap",
                               reportMode === "staff"
                                 ? "bg-blue-600 text-white shadow-md"
                                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
@@ -565,7 +565,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                             type="button"
                             onClick={() => setReportMode("ai")}
                             className={cn(
-                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              "py-1 px-1.5 rounded-lg text-[10px] xl:text-xs font-bold transition-all flex items-center justify-center text-center whitespace-nowrap",
                               reportMode === "ai"
                                 ? "bg-blue-600 text-white shadow-md"
                                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
@@ -595,7 +595,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                             type="button"
                             onClick={() => setProofMode("staff")}
                             className={cn(
-                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              "py-1 px-1.5 rounded-lg text-[10px] xl:text-xs font-bold transition-all flex items-center justify-center text-center whitespace-nowrap",
                               proofMode === "staff"
                                 ? "bg-blue-600 text-white shadow-md"
                                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
@@ -607,7 +607,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                             type="button"
                             onClick={() => setProofMode("ai")}
                             className={cn(
-                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              "py-1 px-1.5 rounded-lg text-[10px] xl:text-xs font-bold transition-all flex items-center justify-center text-center whitespace-nowrap",
                               proofMode === "ai"
                                 ? "bg-blue-600 text-white shadow-md"
                                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
