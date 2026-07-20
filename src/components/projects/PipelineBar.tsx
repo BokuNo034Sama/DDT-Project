@@ -455,78 +455,79 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                 : "pending";
 
             return (
-              <Fragment key={stage.id}>
-                <div
-                  className={cn(
-                    "flex flex-col justify-between h-[360px] bg-slate-900/50 border border-slate-800 rounded-2xl p-4 transition-all hover:border-slate-700",
-                    borderClass,
-                    glowClass
+              <div
+                key={stage.id}
+                className={cn(
+                  "h-auto flex flex-col justify-start gap-2.5 p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl transition-all hover:border-slate-700",
+                  borderClass,
+                  glowClass
+                )}
+              >
+                {/* 1. Stage Header */}
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-all",
+                    isCompleted ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-400 shadow-sm shadow-emerald-950" :
+                    isFailed ? "bg-red-950/60 border-red-500/40 text-red-400 shadow-sm shadow-red-950" :
+                    isInProgress ? "bg-blue-950/80 border-blue-500/50 text-blue-400 ring-1 ring-blue-500/30" :
+                    "bg-slate-800/80 border-slate-700/50 text-slate-400"
+                  )}>
+                    <stage.icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
+                      Stage {index + 1}
+                    </span>
+                    <span className="text-sm font-bold text-slate-100 tracking-wide">
+                      {stage.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Assigned Staff Section */}
+                <div className="my-1 flex-1 flex flex-col justify-center">
+                  {stage.id === "lsmtl_upload" ? (
+                    <div className="text-center py-1">
+                      {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
+                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Report Uploaded Successfully</span>
+                        </span>
+                      ) : project.status === "proof_ready" || project.status === "report_done" ? (
+                        <p className="text-[11px] text-slate-400 max-w-[180px] mx-auto leading-normal">
+                          Awaiting manager to upload the finalized proofread report to LSMTL.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-2 space-y-1">
+                          <Upload className="w-6 h-6 text-slate-600"/>
+                          <span className="text-xs font-medium text-slate-400">Awaiting prior stage completion</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : stage.id === "report_writing" && isProPlan && reportMode === "ai" ? (
+                    <div className="flex items-center gap-3 py-1.5 px-1">
+                      <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-8 h-8" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-100">Report Bot</span>
+                        <span className="text-[10px] font-mono text-slate-400 uppercase">AI Generator</span>
+                      </div>
+                    </div>
+                  ) : stage.id === "proofreading" && isProPlan && proofMode === "ai" ? (
+                    <div className="flex items-center gap-3 py-1.5 px-1">
+                      <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-8 h-8" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-100">Proofread Bot</span>
+                        <span className="text-[10px] font-mono text-slate-400 uppercase">AI Checker</span>
+                      </div>
+                    </div>
+                  ) : (
+                    renderStaffAssignSection(stage, assignment)
                   )}
-                >
-                  {/* 1. Stage Header */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={cn(
-                      "w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 transition-all",
-                      isCompleted ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-400 shadow-sm shadow-emerald-950" :
-                      isFailed ? "bg-red-950/60 border-red-500/40 text-red-400 shadow-sm shadow-red-950" :
-                      isInProgress ? "bg-blue-950/80 border-blue-500/50 text-blue-400 ring-1 ring-blue-500/30" :
-                      "bg-slate-800/80 border-slate-700/50 text-slate-400"
-                    )}>
-                      <stage.icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
-                        Stage {index + 1}
-                      </span>
-                      <span className="text-sm font-bold text-slate-100 tracking-wide">
-                        {stage.label}
-                      </span>
-                    </div>
-                  </div>
+                </div>
 
-                  {/* 2. Assigned Staff Section */}
-                  <div className="my-2 flex-1 flex flex-col justify-center">
-                    {stage.id === "lsmtl_upload" ? (
-                      <div className="text-center">
-                        {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
-                          <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 justify-center">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Report Uploaded Successfully</span>
-                          </span>
-                        ) : project.status === "proof_ready" || project.status === "report_done" ? (
-                          <p className="text-[11px] text-slate-400 max-w-[180px] mx-auto leading-normal">
-                            Awaiting manager to upload the finalized proofread report to LSMTL.
-                          </p>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-2">
-                            <Upload className="w-8 h-8 text-slate-600"/>
-                            <span className="text-xs font-medium text-slate-400">Awaiting prior stage completion</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : stage.id === "report_writing" && isProPlan && reportMode === "ai" ? (
-                      <div className="flex items-center gap-3 py-2 px-1">
-                        <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-9 h-9" />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-100">Report Bot</span>
-                          <span className="text-[10px] font-mono text-slate-400 uppercase">AI Generator</span>
-                        </div>
-                      </div>
-                    ) : stage.id === "proofreading" && isProPlan && proofMode === "ai" ? (
-                      <div className="flex items-center gap-3 py-2 px-1">
-                        <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-9 h-9" />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-100">Proofread Bot</span>
-                          <span className="text-[10px] font-mono text-slate-400 uppercase">AI Checker</span>
-                        </div>
-                      </div>
-                    ) : (
-                      renderStaffAssignSection(stage, assignment)
-                    )}
-                  </div>
-
-                  {/* 3. Status Row */}
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 py-2 border-y border-slate-800/60 font-mono">
+                {/* 3. Status Row (Omitted for stage 5 when awaiting previous stages to avoid duplicate text) */}
+                {!(stage.id === "lsmtl_upload" && statusLabel === "Awaiting previous stages") && (
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 py-1.5 border-y border-slate-800/60 font-mono">
                     <div className="flex items-center gap-1.5">
                       {statusIcon}
                       <span className="font-semibold">{statusLabel}</span>
@@ -537,108 +538,102 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                       </span>
                     )}
                   </div>
-
-                  {/* 4. Action Area */}
-                  <div className="card-action-area">
-                    {stage.id === "report_writing" ? (
-                      isProPlan ? (
-                        <div className="space-y-1.5 mt-auto">
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
-                            Report Writing Mode
-                          </span>
-                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setReportMode("staff")}
-                              className={cn(
-                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-                                reportMode === "staff"
-                                  ? "bg-blue-600 text-white shadow-md"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                              )}
-                            >
-                              👤 Staff
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setReportMode("ai")}
-                              className={cn(
-                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-                                reportMode === "ai"
-                                  ? "bg-blue-600 text-white shadow-md"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                              )}
-                            >
-                              🤖 Report Bot
-                            </button>
-                          </div>
-
-                          {reportMode === "ai" && (
-                            <div className="mt-2">
-                              <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <UpgradeHint stage="report_writing" />
-                      )
-                    ) : stage.id === "proofreading" ? (
-                      isProPlan ? (
-                        <div className="space-y-1.5 mt-auto">
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
-                            Proofreading Mode
-                          </span>
-                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setProofMode("staff")}
-                              className={cn(
-                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-                                proofMode === "staff"
-                                  ? "bg-blue-600 text-white shadow-md"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                              )}
-                            >
-                              👤 Staff
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setProofMode("ai")}
-                              className={cn(
-                                "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-                                proofMode === "ai"
-                                  ? "bg-blue-600 text-white shadow-md"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                              )}
-                            >
-                              🤖 Proofread Bot
-                            </button>
-                          </div>
-
-                          {proofMode === "ai" && (
-                            <div className="mt-2">
-                              <ProofreadBotPanel
-                                projectId={project.id}
-                                project={project}
-                                isManager={isManager}
-                                setIsProofOpen={setIsProofOpen}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <UpgradeHint stage="proofreading" />
-                      )
-                    ) : null}
-                  </div>
-                </div>
-                {index < stagesConfig.length - 1 && (
-                  <div className={`pipeline-connector ${connectorStatus}`}>
-                    <span className="desktop-arrow">→</span>
-                    <span className="mobile-arrow">↓</span>
-                  </div>
                 )}
-              </Fragment>
+
+                {/* 4. Action Area */}
+                <div className="card-action-area">
+                  {stage.id === "report_writing" ? (
+                    isProPlan ? (
+                      <div className="space-y-1.5 mt-auto">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
+                          Report Writing Mode
+                        </span>
+                        <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setReportMode("staff")}
+                            className={cn(
+                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              reportMode === "staff"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                            )}
+                          >
+                            Staff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReportMode("ai")}
+                            className={cn(
+                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              reportMode === "ai"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                            )}
+                          >
+                            Report Bot
+                          </button>
+                        </div>
+
+                        {reportMode === "ai" && (
+                          <div className="mt-2">
+                            <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <UpgradeHint stage="report_writing" />
+                    )
+                  ) : stage.id === "proofreading" ? (
+                    isProPlan ? (
+                      <div className="space-y-1.5 mt-auto">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
+                          Proofreading Mode
+                        </span>
+                        <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/80 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setProofMode("staff")}
+                            className={cn(
+                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              proofMode === "staff"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                            )}
+                          >
+                            Staff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProofMode("ai")}
+                            className={cn(
+                              "py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                              proofMode === "ai"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                            )}
+                          >
+                            Proofread Bot
+                          </button>
+                        </div>
+
+                        {proofMode === "ai" && (
+                          <div className="mt-2">
+                            <ProofreadBotPanel
+                              projectId={project.id}
+                              project={project}
+                              isManager={isManager}
+                              setIsProofOpen={setIsProofOpen}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <UpgradeHint stage="proofreading" />
+                    )
+                  ) : null}
+                </div>
+              </div>
             );
           })}
 
