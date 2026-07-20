@@ -96,18 +96,26 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
               padding: "24px",
             }}
           >
-            {/* Log Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ddt-border/50 pb-4 mb-4">
-              <div className="flex items-center gap-3">
-                <UserPill name={teamLeadName} avatarInitials={initials} className="bg-ddt-raised shrink-0 w-10 h-10" />
-                <div>
-                  <span className="text-[10px] text-ddt-muted uppercase tracking-wider font-semibold font-mono block">Team Leader</span>
-                  <span className="text-sm font-bold text-ddt-text block leading-snug">{teamLeadName}</span>
+            {/* Cleaned Log Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-5">
+              <div className="flex items-center gap-3.5">
+                <UserPill
+                  name={teamLeadName}
+                  avatarInitials={initials}
+                  className="bg-slate-800 border border-slate-700 shrink-0 w-10 h-10 flex items-center justify-center text-slate-100 font-bold"
+                />
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] text-blue-400 uppercase tracking-widest font-mono font-bold leading-none mb-1">
+                    Team Leader
+                  </span>
+                  <span className="text-sm font-bold text-white leading-tight tracking-wide">
+                    {teamLeadName}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-ddt-muted font-mono bg-ddt-input border border-ddt-border/30 rounded px-2.5 py-1 w-fit">
-                <Calendar className="w-3.5 h-3.5 text-ddt-accent" />
+              <div className="flex items-center gap-2 text-xs text-slate-300 font-mono bg-slate-900/90 border border-slate-800 rounded-md px-3 py-1.5 w-fit shadow-inner">
+                <Calendar className="w-3.5 h-3.5 text-blue-400" />
                 <span>
                   {log.completed_at
                     ? new Date(log.completed_at).toLocaleString("en-US", {
