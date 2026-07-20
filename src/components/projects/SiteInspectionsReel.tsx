@@ -96,25 +96,23 @@ export function SiteInspectionsReel({ projectId }: SiteInspectionsReelProps) {
               padding: "24px",
             }}
           >
-            {/* Cleaned Log Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-5">
-              <div className="flex items-center gap-3.5">
-                <UserPill
-                  name={teamLeadName}
-                  avatarInitials={initials}
-                  className="bg-slate-800 border border-slate-700 shrink-0 w-10 h-10 flex items-center justify-center text-slate-100 font-bold"
-                />
-                <div className="flex flex-col justify-center">
-                  <span className="text-[10px] text-blue-400 uppercase tracking-widest font-mono font-bold leading-none mb-1">
+            {/* Fixed Header Layout — Eliminates Double Name Duplicate */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                {/* UserPill renders the name automatically. We wrap it cleanly with the role header above/beside it */}
+                <div>
+                  <span className="text-[10px] text-blue-400 uppercase tracking-widest font-mono font-bold block mb-1">
                     Team Leader
                   </span>
-                  <span className="text-sm font-bold text-white leading-tight tracking-wide">
-                    {teamLeadName}
-                  </span>
+                  <UserPill
+                    name={teamLeadName}
+                    avatarInitials={initials}
+                    className="bg-slate-800 border border-slate-700 text-white font-bold"
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-300 font-mono bg-slate-900/90 border border-slate-800 rounded-md px-3 py-1.5 w-fit shadow-inner">
+              <div className="flex items-center gap-2 text-xs text-slate-300 font-mono bg-slate-900 border border-slate-800 rounded-md px-3 py-1.5 w-fit">
                 <Calendar className="w-3.5 h-3.5 text-blue-400" />
                 <span>
                   {log.completed_at
