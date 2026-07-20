@@ -42,6 +42,48 @@ export default function AdminPage() {
     }
   });
 
+  const extendTrialMutation = trpc.admin.extendTrial.useMutation({
+    onSuccess: () => {
+      refetchTenants();
+      refetchLogs();
+    },
+    onError: (err) => {
+      toast({
+        title: "Action Failed",
+        description: err.message || "Failed to extend trial.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const suspendTenantMutation = trpc.admin.suspendTenant.useMutation({
+    onSuccess: () => {
+      refetchTenants();
+      refetchLogs();
+    },
+    onError: (err) => {
+      toast({
+        title: "Action Failed",
+        description: err.message || "Failed to suspend access.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const restoreTenantMutation = trpc.admin.restoreTenant.useMutation({
+    onSuccess: () => {
+      refetchTenants();
+      refetchLogs();
+    },
+    onError: (err) => {
+      toast({
+        title: "Action Failed",
+        description: err.message || "Failed to restore access.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Modal State
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
   
@@ -138,26 +180,13 @@ export default function AdminPage() {
     if (!selectedTenant) return;
 
     try {
-      let plan: "starter" | "pro" = (selectedTenant.plan_name as any) || "starter";
-      let status: "trial" | "active" | "cancelled" = "active";
-      let days: number | undefined = undefined;
-      let expires: string | undefined = undefined;
-
       if (action === "extend_trial") {
-        status = "trial";
-        days = 14;
+        await extendTrialMutation.mutateAsync({ tenantId: selectedTenant.id, days: 14 });
       } else if (action === "suspend") {
-        status = "cancelled";
+        await suspendTenantMutation.mutateAsync({ tenantId: selectedTenant.id });
       } else if (action === "restore") {
-        status = "active";
+        await restoreTenantMutation.mutateAsync({ tenantId: selectedTenant.id });
       }
-
-      await setSubscriptionMutation.mutateAsync({
-        tenantId: selectedTenant.id,
-        plan,
-        status,
-        daysToGrant: days,
-      });
 
       toast({
         title: "Quick Action Applied",
@@ -324,8 +353,12 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-ddt-muted truncate max-w-[240px]">
                       {log.details ? (
                         <span>
-                          Plan: {log.details.plan?.toUpperCase()}, Status: {log.details.status?.toUpperCase()}
+                          {log.details.plan ? `Plan: ${log.details.plan?.toUpperCase()}` : ""}
+                          {log.details.status ? `, Status: ${log.details.status?.toUpperCase()}` : ""}
                           {log.details.daysGranted ? ` (${log.details.daysGranted} days)` : ""}
+                          {log.details.daysAdded ? `Extended ${log.details.daysAdded} days` : ""}
+                          {log.details.suspendedAt ? `Suspended` : ""}
+                          {log.details.restoredAt ? `Restored` : ""}
                         </span>
                       ) : "-"}
                     </td>

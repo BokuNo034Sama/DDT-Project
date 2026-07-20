@@ -64,68 +64,80 @@ export const adminRouter = router({
   // Set tenant subscription and log audit log
   setTenantSubscription: adminProcedure
     .input(z.object({
-      tenantId: z.string().uuid(),
+      tenantId: z.string(),
       plan: z.enum(['starter', 'pro']),
       status: z.enum(['trial', 'active', 'past_due', 'cancelled']),
-      expiresAt: z.string().optional(),
       daysToGrant: z.number().optional(),
+      expiresAt: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const adminClient = createAdminClient();
+      const adminClient = createAdminClient()
 
-      // Calculate period end
+      // Calculate period end date
       const periodEnd = input.daysToGrant
-        ? new Date(Date.now() + input.daysToGrant * 24 * 60 * 60 * 1000).toISOString()
-        : input.expiresAt || null;
+        ? new Date(
+            Date.now() +
+            input.daysToGrant * 24 * 60 * 60 * 1000
+          ).toISOString()
+        : input.expiresAt || null
 
-      // Update tenant status field in tenants table
-      const statusMap: Record<string, "trial" | "active" | "inactive"> = {
-        trial: "trial",
-        active: "active",
-        past_due: "trial",
-        cancelled: "inactive",
-      };
-      
-      const mappedTenantStatus = statusMap[input.status] || "inactive";
-
-      const { error: tenantUpdateError } = await adminClient
-        .from("tenants")
-        .update({
-          subscription_status: mappedTenantStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", input.tenantId);
-
-      if (tenantUpdateError) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update tenant status: " + tenantUpdateError.message,
-        });
-      }
-
-      // Upsert subscription record
-      const { error } = await adminClient
+      // Check if subscription exists for this tenant
+      const { data: existing } = await adminClient
         .from('subscriptions')
-        .upsert({
-          tenant_id: input.tenantId,
-          plan_name: input.plan,
-          status: input.status,
-          amount_kobo: input.plan === 'pro' ? 4500000 : 1500000,
-          current_period_end: periodEnd,
-          trial_ends_at: input.status === 'trial' ? periodEnd : null,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'tenant_id'
-        });
+        .select('id')
+        .eq('tenant_id', input.tenantId)
+        .single()
 
-      if (error) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error.message
-        });
+      if (existing) {
+        // UPDATE existing subscription
+        const { error } = await adminClient
+          .from('subscriptions')
+          .update({
+            plan_name: input.plan,
+            status: input.status,
+            amount_kobo: input.plan === 'pro'
+              ? 4500000
+              : 1500000,
+            current_period_end: periodEnd,
+            trial_ends_at: input.status === 'trial'
+              ? periodEnd
+              : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('tenant_id', input.tenantId)
+
+        if (error) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: error.message
+          })
+        }
+      } else {
+        // INSERT new subscription
+        const { error } = await adminClient
+          .from('subscriptions')
+          .insert({
+            tenant_id: input.tenantId,
+            plan_name: input.plan,
+            status: input.status,
+            amount_kobo: input.plan === 'pro'
+              ? 4500000
+              : 1500000,
+            current_period_end: periodEnd,
+            trial_ends_at: input.status === 'trial'
+              ? periodEnd
+              : null,
+          })
+
+        if (error) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: error.message
+          })
+        }
       }
 
-      // Insert audit log
+      // Log to admin audit log
       await adminClient
         .from('admin_audit_log')
         .insert({
@@ -136,12 +148,141 @@ export const adminRouter = router({
             plan: input.plan,
             status: input.status,
             daysGranted: input.daysToGrant,
-            expiresAt: periodEnd,
+            periodEnd,
             grantedAt: new Date().toISOString(),
           }
-        });
+        })
 
-      return { success: true };
+      return { success: true }
+    }),
+
+  // Extend trial by N days
+  extendTrial: adminProcedure
+    .input(z.object({
+      tenantId: z.string(),
+      days: z.number().default(14),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient()
+
+      // Get current trial end
+      const { data } = await adminClient
+        .from('subscriptions')
+        .select('trial_ends_at')
+        .eq('tenant_id', input.tenantId)
+        .single()
+
+      // Extend from current end OR from now
+      const currentEnd = data?.trial_ends_at
+        ? new Date(data.trial_ends_at)
+        : new Date()
+
+      // If trial already expired extend from now
+      const baseDate = currentEnd < new Date()
+        ? new Date()
+        : currentEnd
+
+      const newEnd = new Date(
+        baseDate.getTime() +
+        input.days * 24 * 60 * 60 * 1000
+      ).toISOString()
+
+      const { error } = await adminClient
+        .from('subscriptions')
+        .update({
+          trial_ends_at: newEnd,
+          status: 'trial',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('tenant_id', input.tenantId)
+
+      if (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
+      }
+
+      // Log action
+      await adminClient
+        .from('admin_audit_log')
+        .insert({
+          admin_id: ctx.userId,
+          action: 'extend_trial',
+          target_tenant_id: input.tenantId,
+          details: {
+            daysAdded: input.days,
+            newTrialEnd: newEnd,
+          }
+        })
+
+      return { success: true, newTrialEnd: newEnd }
+    }),
+
+  // Suspend lab access
+  suspendTenant: adminProcedure
+    .input(z.object({ tenantId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient()
+
+      const { error } = await adminClient
+        .from('subscriptions')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('tenant_id', input.tenantId)
+
+      if (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
+      }
+
+      await adminClient
+        .from('admin_audit_log')
+        .insert({
+          admin_id: ctx.userId,
+          action: 'suspend_tenant',
+          target_tenant_id: input.tenantId,
+          details: { suspendedAt: new Date().toISOString() }
+        })
+
+      return { success: true }
+    }),
+
+  // Restore lab access
+  restoreTenant: adminProcedure
+    .input(z.object({ tenantId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient()
+
+      const { error } = await adminClient
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('tenant_id', input.tenantId)
+
+      if (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message
+        })
+      }
+
+      await adminClient
+        .from('admin_audit_log')
+        .insert({
+          admin_id: ctx.userId,
+          action: 'restore_tenant',
+          target_tenant_id: input.tenantId,
+          details: { restoredAt: new Date().toISOString() }
+        })
+
+      return { success: true }
     }),
 
   // List audit logs
