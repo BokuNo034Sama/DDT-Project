@@ -13,7 +13,7 @@ export const staffRouter = router({
     .query(async ({ ctx }) => {
       const adminClient = createAdminClient()
 
-      const { data: currentUser } = await adminClient
+      const { data: manager } = await adminClient
         .from('users')
         .select('tenant_id')
         .eq('id', ctx.userId)
@@ -21,8 +21,8 @@ export const staffRouter = router({
 
       const { data, error } = await adminClient
         .from('users')
-        .select('id, full_name, email, role, is_active')
-        .eq('tenant_id', currentUser?.tenant_id)
+        .select('id, full_name, email, role, is_active, joined_at, created_at')
+        .eq('tenant_id', manager?.tenant_id)
         .eq('is_active', true)
         .in('role', ['staff', 'ops_manager', 'lab_owner'])
         .order('full_name', { ascending: true })
@@ -33,6 +33,26 @@ export const staffRouter = router({
           message: error.message
         })
       }
+
+      return data || []
+    }),
+
+  listDeactivated: managerProcedure
+    .query(async ({ ctx }) => {
+      const adminClient = createAdminClient()
+
+      const { data: manager } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
+
+      const { data } = await adminClient
+        .from('users')
+        .select('id, full_name, email, role, is_active, joined_at')
+        .eq('tenant_id', manager?.tenant_id)
+        .eq('is_active', false)
+        .order('full_name', { ascending: true })
 
       return data || []
     }),
@@ -224,17 +244,120 @@ export const staffRouter = router({
   deactivate: managerProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      if (input.userId === ctx.userId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot deactivate yourself" });
+      const adminClient = createAdminClient()
+
+      // Get manager's tenant
+      const { data: manager } = await adminClient
+        .from('users')
+        .select('tenant_id, id')
+        .eq('id', ctx.userId)
+        .single()
+
+      // Verify target user belongs to same tenant
+      const { data: targetUser } = await adminClient
+        .from('users')
+        .select('id, tenant_id, full_name, role')
+        .eq('id', input.userId)
+        .single()
+
+      if (!targetUser) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'User not found'
+        })
       }
-      // Assuming 'is_active' doesn't exist on users yet based on initial schema step, we might just delete or remove role. Let's add is_active if it exists, otherwise just log or fail softly. Wait, step 19 says: Sets is_active = false. Let's assume it exists.
-      const { error } = await ctx.supabase
-        .from("users")
-        .update({ is_active: false })
-        .eq("id", input.userId)
-        .eq("tenant_id", ctx.tenantId);
-      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
-      return { success: true };
+
+      // Cannot deactivate yourself
+      if (input.userId === ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You cannot deactivate your own account'
+        })
+      }
+
+      // Cannot deactivate someone from another tenant
+      if (targetUser.tenant_id !== manager?.tenant_id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Not authorized to deactivate this user'
+        })
+      }
+
+      // Cannot deactivate a super_admin
+      if (targetUser.role === 'super_admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot deactivate a super admin'
+        })
+      }
+
+      // Perform the deactivation using adminClient
+      const { error, data } = await adminClient
+        .from('users')
+        .update({
+          is_active: false,
+        })
+        .eq('id', input.userId)
+        .select() // Returns updated row to confirm
+
+      // Log result for debugging
+      console.log('Deactivate result:', { error, data })
+
+      if (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to deactivate user: ' + error.message
+        })
+      }
+
+      if (!data || data.length === 0) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Deactivation failed — no rows updated'
+        })
+      }
+
+      return {
+        success: true,
+        deactivatedUser: targetUser.full_name
+      }
+    }),
+
+  reactivate: managerProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient()
+
+      const { data: manager } = await adminClient
+        .from('users')
+        .select('tenant_id')
+        .eq('id', ctx.userId)
+        .single()
+
+      const { data: targetUser } = await adminClient
+        .from('users')
+        .select('full_name')
+        .eq('id', input.userId)
+        .single()
+
+      const { error, data } = await adminClient
+        .from('users')
+        .update({ is_active: true })
+        .eq('id', input.userId)
+        .eq('tenant_id', manager?.tenant_id)
+        .select()
+
+      if (error || !data?.length) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to reactivate user'
+        })
+      }
+
+      return {
+        success: true,
+        reactivatedUser: targetUser?.full_name || 'User'
+      }
     }),
 
   getPendingInvitations: managerProcedure.query(async ({ ctx }) => {
