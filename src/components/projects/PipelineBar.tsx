@@ -468,36 +468,34 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
               <Fragment key={stage.id}>
                 <div
                   className={cn(
-                    "pipeline-stage-card transition-all duration-300",
+                    "bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 flex flex-col justify-between min-h-[320px] transition-all shadow-md group",
                     borderClass,
                     glowClass
                   )}
                 >
                   {/* 1. Stage Header */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className={cn(
-                        "p-1.5 rounded-lg border",
-                        isCompleted ? "bg-emerald-950/50 border-emerald-500/30 text-emerald-400" :
-                        isFailed ? "bg-red-950/50 border-red-500/30 text-red-400" :
-                        isInProgress ? "bg-ddt-accent-bg border-ddt-accent/30 text-ddt-accent" :
-                        "bg-ddt-raised border-ddt-border text-ddt-muted"
-                      )}>
-                        <stage.icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-semibold text-ddt-muted uppercase tracking-wider block">
-                          Stage {index + 1}
-                        </span>
-                        <span className="font-syne font-bold text-ddt-text text-sm">
-                          {stage.label}
-                        </span>
-                      </div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 transition-all",
+                      isCompleted ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-400 shadow-sm shadow-emerald-950" :
+                      isFailed ? "bg-red-950/60 border-red-500/40 text-red-400 shadow-sm shadow-red-950" :
+                      isInProgress ? "bg-blue-950/80 border-blue-500/50 text-blue-400 ring-1 ring-blue-500/30" :
+                      "bg-slate-800/80 border-slate-700/50 text-slate-400"
+                    )}>
+                      <stage.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
+                        Stage {index + 1}
+                      </span>
+                      <span className="text-sm font-bold text-slate-100 tracking-wide">
+                        {stage.label}
+                      </span>
                     </div>
                   </div>
 
                   {/* 2. Assigned Staff Section */}
-                  <div className="my-3 flex-1 flex flex-col justify-center">
+                  <div className="my-2 bg-slate-950/40 border border-slate-800/60 rounded-lg p-2.5 flex-1 flex flex-col justify-center">
                     {stage.id === "lsmtl_upload" ? (
                       <div className="text-center">
                         {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
@@ -558,18 +556,18 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                     {stage.id === "report_writing" ? (
                       isProPlan ? (
                         <div className="space-y-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">
                             Report Writing Mode
                           </p>
-                          <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-lg border border-slate-800 gap-1 mt-2">
                             <button
                               type="button"
                               onClick={() => setReportMode("staff")}
                               className={cn(
-                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
                                 reportMode === "staff"
-                                  ? "bg-ddt-accent text-black shadow-md"
-                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                                  ? "bg-blue-600 text-white shadow-sm"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
                               👤 Staff
@@ -578,10 +576,10 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                               type="button"
                               onClick={() => setReportMode("ai")}
                               className={cn(
-                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
                                 reportMode === "ai"
-                                  ? "bg-ddt-accent text-black shadow-md"
-                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                                  ? "bg-blue-600 text-white shadow-sm"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
                               🤖 Report Bot
@@ -600,18 +598,18 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                     ) : stage.id === "proofreading" ? (
                       isProPlan ? (
                         <div className="space-y-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-ddt-muted">
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">
                             Proofreading Mode
                           </p>
-                          <div className="flex p-1 bg-ddt-input rounded-xl border border-ddt-border/50 gap-1">
+                          <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-lg border border-slate-800 gap-1 mt-2">
                             <button
                               type="button"
                               onClick={() => setProofMode("staff")}
                               className={cn(
-                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
                                 proofMode === "staff"
-                                  ? "bg-ddt-accent text-black shadow-md"
-                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                                  ? "bg-blue-600 text-white shadow-sm"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
                               👤 Staff
@@ -620,10 +618,10 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                               type="button"
                               onClick={() => setProofMode("ai")}
                               className={cn(
-                                "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200",
+                                "py-1 px-2 rounded-md text-[11px] font-bold transition-all",
                                 proofMode === "ai"
-                                  ? "bg-ddt-accent text-black shadow-md"
-                                  : "text-ddt-muted hover:text-ddt-text hover:bg-ddt-raised/50"
+                                  ? "bg-blue-600 text-white shadow-sm"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                               )}
                             >
                               🤖 Proofread Bot

@@ -311,10 +311,9 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
                   
                   {/* HEADER ROW: Date and Floors */}
                   <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                    <div className="flex items-center space-x-3 text-xs">
-                      <span className="font-semibold text-slate-300">{formattedDate}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 text-[10px] tracking-wider uppercase">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold font-mono text-slate-200 uppercase tracking-wider">{formattedDate}</span>
+                      <span className="bg-blue-950/80 text-blue-400 border border-blue-800/50 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase">
                         {floorCount} FLOORS
                       </span>
                     </div>
@@ -358,7 +357,7 @@ export function SiteVisitsList({ project }: SiteVisitsListProps) {
 
                         {/* REASSIGN DROPDOWN */}
                         {isManager && (
-                          <div className="relative reassign-container">
+                          <div className="relative reassign-container ml-auto">
                             <button
                               onClick={() => setActiveReassignId(activeReassignId === staff.id ? null : staff.id)}
                               disabled={!isOnline || reassignStaffMutation.isPending}
