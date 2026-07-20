@@ -281,32 +281,36 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
     const assignedRole = (assignment?.assigned_user?.role || "technician").replace(/_/g, " ");
 
     return (
-      <div className="my-2">
+      <div className="my-1.5 w-full">
         {assignment?.assigned_to || assignment?.assigned_user?.full_name ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 py-2 px-1">
-              <AvatarCircle initials={getInitials(assignedName)} className="bg-blue-600 text-white font-bold w-9 h-9" />
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-100">{assignedName}</span>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">{assignedRole}</span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3 py-1 px-1 h-[48px]">
+              <AvatarCircle initials={getInitials(assignedName)} className="w-8 h-8 shrink-0 bg-blue-600 text-white font-bold text-xs flex items-center justify-center rounded-full" />
+              <div className="flex flex-col justify-center min-w-0">
+                <p className="text-xs font-bold text-slate-100 truncate leading-tight">
+                  {assignedName}
+                </p>
+                <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider leading-tight mt-0.5">
+                  {assignedRole}
+                </p>
               </div>
             </div>
 
             {isManager && (
-              <div className="relative reassign-container">
+              <div className="relative reassign-container mt-1.5">
                 <button
                   type="button"
                   onClick={() => setActiveReassignId(activeReassignId === assignment.id ? null : assignment.id)}
                   disabled={!isOnline || reassignMutation.isPending}
                   className={cn(
-                    "w-full flex items-center justify-center space-x-2 py-1.5 px-3 border border-dashed border-slate-800 hover:border-slate-600 bg-slate-950/60 hover:bg-slate-900 rounded-lg text-xs font-medium text-slate-300 transition-all group",
+                    "w-full py-1.5 px-3 border border-dashed border-slate-700/80 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-800/60 rounded-lg text-[11px] font-medium text-slate-300 transition-all flex items-center justify-center gap-1.5",
                     (!isOnline || reassignMutation.isPending) && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {reassignMutation.isPending && activeReassignId === assignment.id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                   ) : (
-                    <UserPlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200" />
+                    <UserPlus className="w-3.5 h-3.5 text-slate-400" />
                   )}
                   <span>Reassign Staff</span>
                 </button>
@@ -485,7 +489,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                 </div>
 
                 {/* 2. Assigned Staff Section */}
-                <div className="my-1 flex-1 flex flex-col justify-center">
+                <div className="w-full my-1">
                   {stage.id === "lsmtl_upload" ? (
                     <div className="text-center py-1">
                       {project.status === "report_uploaded" || project.status === "report_verified" || project.status === "report_delivered" ? (
@@ -505,19 +509,19 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                       )}
                     </div>
                   ) : stage.id === "report_writing" && isProPlan && reportMode === "ai" ? (
-                    <div className="flex items-center gap-3 py-1.5 px-1">
-                      <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-8 h-8" />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-100">Report Bot</span>
-                        <span className="text-[10px] font-mono text-slate-400 uppercase">AI Generator</span>
+                    <div className="flex items-center gap-3 py-1 px-1 h-[48px]">
+                      <AvatarCircle initials="AI" className="w-8 h-8 shrink-0 bg-blue-600 text-white font-bold text-xs flex items-center justify-center rounded-full" />
+                      <div className="flex flex-col justify-center min-w-0">
+                        <p className="text-xs font-bold text-slate-100 truncate leading-tight">Report Bot</p>
+                        <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider leading-tight mt-0.5">AI Generator</p>
                       </div>
                     </div>
                   ) : stage.id === "proofreading" && isProPlan && proofMode === "ai" ? (
-                    <div className="flex items-center gap-3 py-1.5 px-1">
-                      <AvatarCircle initials="AI" className="bg-blue-600 text-white font-bold w-8 h-8" />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-100">Proofread Bot</span>
-                        <span className="text-[10px] font-mono text-slate-400 uppercase">AI Checker</span>
+                    <div className="flex items-center gap-3 py-1 px-1 h-[48px]">
+                      <AvatarCircle initials="AI" className="w-8 h-8 shrink-0 bg-blue-600 text-white font-bold text-xs flex items-center justify-center rounded-full" />
+                      <div className="flex flex-col justify-center min-w-0">
+                        <p className="text-xs font-bold text-slate-100 truncate leading-tight">Proofread Bot</p>
+                        <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider leading-tight mt-0.5">AI Checker</p>
                       </div>
                     </div>
                   ) : (
