@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Upload, FileSpreadsheet, X, AlertTriangle } from "lucide-react";
+import { Upload, FileSpreadsheet, X, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExcelUploadPanelProps {
@@ -79,6 +79,22 @@ export function ExcelUploadPanel({ onBack, onGenerate, isGenerating }: ExcelUplo
         <p className="text-xs text-ddt-muted">
           Upload the compiled Excel observation sheet (.xlsx) containing trials and calculated concrete strengths.
         </p>
+      </div>
+
+      {/* Downloadable Template Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-ddt-surface border border-ddt-border rounded-xl">
+        <div className="flex items-center gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-ddt-accent shrink-0" />
+          <span className="text-xs text-ddt-muted font-medium">Need the standard observation layout?</span>
+        </div>
+        <a
+          href="/templates/NDT_ANAlySiS_Template.xlsx"
+          download="NDT_ANAlySiS_Template.xlsx"
+          className="inline-flex items-center justify-center gap-1.5 bg-ddt-accent/10 hover:bg-ddt-accent/20 text-ddt-accent border border-ddt-accent/20 font-bold text-xs py-1.5 px-3 rounded-lg transition-all whitespace-nowrap self-start sm:self-auto"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Download Excel Template (.xlsx)</span>
+        </a>
       </div>
 
       <div
