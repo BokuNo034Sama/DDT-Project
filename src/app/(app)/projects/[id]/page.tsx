@@ -13,7 +13,6 @@ import { TopBar } from "@/components/layout/TopBar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { ReportBotPanel } from "@/components/v4/ReportBotPanel";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;

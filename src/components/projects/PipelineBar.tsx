@@ -123,6 +123,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
   // Modals visibility state
   const [assignStage, setAssignStage] = useState<"analysis" | "sketch" | "report_writing" | "proofreading" | null>(null);
   const [isProofOpen, setIsProofOpen] = useState(false);
+  const [isReportBotOpen, setIsReportBotOpen] = useState(false);
   const [activeReassignId, setActiveReassignId] = useState<string | null>(null);
 
   const { data: me } = trpc.staff.getMe.useQuery();
@@ -580,8 +581,19 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
                         </div>
 
                         {reportMode === "ai" && (
-                          <div className="mt-2">
-                            <ReportBotPanel project={{ id: project.id, ndt_code: project.ndt_code || "", client_name: project.client_name || "", status: project.status || "" }} />
+                          <div className="mt-3">
+                            <Button
+                              type="button"
+                              onClick={() => setIsReportBotOpen(true)}
+                              className="w-full bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2.5 px-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>
+                                {project.status === "report_bot_draft"
+                                  ? "View / Download Draft"
+                                  : "Launch Report Bot"}
+                              </span>
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -752,6 +764,18 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
         isOpen={isProofOpen}
         onOpenChange={setIsProofOpen}
         projectId={project.id}
+      />
+
+      {/* Report Bot Modal Pop-up */}
+      <ReportBotPanel
+        project={{
+          id: project.id,
+          ndt_code: project.ndt_code || "",
+          client_name: project.client_name || "",
+          status: project.status || "",
+        }}
+        isOpen={isReportBotOpen}
+        onOpenChange={setIsReportBotOpen}
       />
     </div>
   );
