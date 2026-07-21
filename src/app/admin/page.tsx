@@ -6,6 +6,7 @@ import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { signOut } from "@/lib/auth/actions";
 import { 
   Shield, 
   Settings, 
@@ -18,7 +19,8 @@ import {
   Sparkles, 
   X,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -214,28 +216,40 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Quick own-lab Pro Access shortcut */}
-        {myLab && (
-          <div className="flex items-center gap-3 bg-ddt-bg border border-ddt-border p-2 px-4 rounded-xl">
-            <div className="text-left">
-              <span className="text-[10px] font-bold text-ddt-muted uppercase tracking-wider block">My Lab Workspace</span>
-              <span className="text-xs font-semibold text-ddt-text">{myLab.name}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Quick own-lab Pro Access shortcut */}
+          {myLab && (
+            <div className="flex items-center gap-3 bg-ddt-bg border border-ddt-border p-2 px-4 rounded-xl">
+              <div className="text-left">
+                <span className="text-[10px] font-bold text-ddt-muted uppercase tracking-wider block">My Lab Workspace</span>
+                <span className="text-xs font-semibold text-ddt-text">{myLab.name}</span>
+              </div>
+              <button
+                type="button"
+                disabled={setSubscriptionMutation.isPending}
+                onClick={handleQuickGrant}
+                className="bg-[#A3E635] hover:bg-[#A3E635]/90 text-black text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+              >
+                {setSubscriptionMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>Grant Pro Access (1 Year)</span>
+              </button>
             </div>
+          )}
+
+          <form action={signOut}>
             <button
-              type="button"
-              disabled={setSubscriptionMutation.isPending}
-              onClick={handleQuickGrant}
-              className="bg-[#A3E635] hover:bg-[#A3E635]/90 text-black text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+              type="submit"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-red-400 bg-slate-900 hover:bg-red-950/40 border border-slate-800 hover:border-red-900/60 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
             >
-              {setSubscriptionMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
-              <span>Grant Pro Access (1 Year)</span>
+              <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-400" />
+              <span>Sign Out</span>
             </button>
-          </div>
-        )}
+          </form>
+        </div>
       </div>
 
       {/* Main Workspaces Table Card */}

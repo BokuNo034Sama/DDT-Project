@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
 function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get("reset") === "success";
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +78,13 @@ function LoginContent() {
             </p>
           </div>
 
+          {resetSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-[12px] text-sm font-medium flex items-center space-x-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <span>Password reset successful. Please sign in.</span>
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -97,7 +106,7 @@ function LoginContent() {
                   <Label htmlFor="password" className="text-[#1A1917] font-medium">
                     Password
                   </Label>
-                  <Link href="#" className="text-[14px] text-[#3B82F6] hover:underline font-medium">
+                  <Link href="/forgot-password" className="text-[14px] text-[#3B82F6] hover:underline font-medium">
                     Forgot password?
                   </Link>
                 </div>

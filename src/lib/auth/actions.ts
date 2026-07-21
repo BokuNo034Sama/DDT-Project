@@ -136,3 +136,40 @@ export async function initializeTenant(labName: string) {
 
   return { success: true };
 }
+
+// Send password reset email
+export async function sendPasswordReset(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createClient();
+
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://ddtstructure.com").replace(/\/$/, "");
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${baseUrl}/reset-password`,
+  });
+
+  // Always return success — do not reveal if
+  // email exists (security best practice)
+  if (error) {
+    console.error("Reset email error:", error);
+  }
+
+  return { success: true };
+}
+
+// Update password after reset
+export async function updatePassword(
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+

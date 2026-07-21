@@ -9,6 +9,8 @@ export async function middleware(request: NextRequest) {
   const isAuthPage =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
     pathname.startsWith("/accept-invite");
   const isApiRoute = pathname.startsWith("/api");
   const isLandingPage = pathname === "/";
@@ -19,11 +21,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // If user is logged in and trying to access an auth page (except accept-invite)
+  // If user is logged in and trying to access an auth page (except accept-invite and reset-password)
   if (
     user &&
     isAuthPage &&
-    !pathname.startsWith("/accept-invite")
+    !pathname.startsWith("/accept-invite") &&
+    !pathname.startsWith("/reset-password")
   ) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
