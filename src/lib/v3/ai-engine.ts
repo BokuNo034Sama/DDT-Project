@@ -18,7 +18,7 @@ async function runCheck(
 ): Promise<BaseCheckResult> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-sonnet-4-5",
       max_tokens: 1024,
       system: systemPrompt + "\n\n" + JSON_INSTRUCTION,
       messages: [{ role: "user", content: userPrompt }],

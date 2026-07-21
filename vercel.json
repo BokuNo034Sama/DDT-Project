@@ -2,5 +2,16 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/v4/generate-report/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/v3/proofread/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/reports/performance-pdf/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }

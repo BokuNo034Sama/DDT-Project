@@ -290,7 +290,7 @@ CONCRETE GRADE LOGIC:
 NDT CODE FORMAT: e.g. REF: SKAAP/NDT/K007 (lab code + project NDT code)
 
 CRITICAL: Report Bot uses Claude API (same ANTHROPIC_API_KEY as Proofread Bot)
-Model: claude-sonnet-4-20250514
+Model: claude-sonnet-4-5
 Max tokens: 8000 per section call
 All Claude prompts end with: "Respond ONLY in the exact format specified. No preamble."
 ```
@@ -695,7 +695,7 @@ import Anthropic from '@anthropic-ai/sdk'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const response = await anthropic.messages.create({
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5',
   max_tokens: 4000,
   messages: [{ role: 'user', content: prompt }]
 })
