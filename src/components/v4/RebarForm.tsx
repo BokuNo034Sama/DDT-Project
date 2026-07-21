@@ -33,18 +33,34 @@ export function RebarForm({ projectId, onBack, onNext }: RebarFormProps) {
 
   const [selectedProfoscopeId, setSelectedProfoscopeId] = useState<string>("");
 
-  // Query project's logged equipment checks
+  // Query project's logged equipment checks from site visits
   const { data: checks, isLoading: loadingChecks } = trpc.reportBot.getEquipmentChecksByProject.useQuery({
     projectId,
   });
 
-  const profoscopes = (checks || [])
-    .filter((c: any) => c.equipment?.equipment_type === "Profoscope")
+  // Query tenant's lab equipment registry
+  const { data: registeredEquipment, isLoading: loadingRegistry } = trpc.equipment.listEquipment.useQuery();
+
+  const siteVisitProfoscopes = (checks || [])
+    .filter((c: any) => c.equipment?.equipment_type?.toLowerCase() === "profoscope")
     .map((c: any) => ({
       id: c.equipment.id,
       name: c.equipment.equipment_name,
       serial: c.equipment.serial_number,
+      source: "Site Visit Logged",
     }));
+
+  const registryProfoscopes = (registeredEquipment || [])
+    .filter((e: any) => e.equipment_type?.toLowerCase() === "profoscope")
+    .map((e: any) => ({
+      id: e.id,
+      name: e.equipment_name,
+      serial: e.serial_number,
+      source: "Lab Equipment Registry",
+    }));
+
+  const profoscopes = siteVisitProfoscopes.length > 0 ? siteVisitProfoscopes : registryProfoscopes;
+  const loadingEquipment = loadingChecks && loadingRegistry;
 
   // Auto-select first Profoscope when loaded
   useEffect(() => {
@@ -94,10 +110,10 @@ export function RebarForm({ projectId, onBack, onNext }: RebarFormProps) {
           Profoscope Equipment Selection
         </h4>
 
-        {loadingChecks ? (
+        {loadingEquipment ? (
           <div className="flex items-center gap-2 text-xs text-ddt-muted">
             <Loader2 className="w-4 h-4 animate-spin text-ddt-accent" />
-            <span>Loading logged equipment...</span>
+            <span>Loading equipment...</span>
           </div>
         ) : profoscopes.length > 0 ? (
           <div className="space-y-2.5">
@@ -111,7 +127,7 @@ export function RebarForm({ projectId, onBack, onNext }: RebarFormProps) {
                   <span className="text-ddt-muted">S/N: {profoscopes[0].serial}</span>
                 </div>
                 <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/10">
-                  Auto Selected
+                  {profoscopes[0].source}
                 </span>
               </div>
             ) : (
