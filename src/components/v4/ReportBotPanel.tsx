@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,13 @@ export function ReportBotPanel({ project, isOpen, onOpenChange }: ReportBotPanel
   const [drawingProvided, setDrawingProvided] = useState(false);
   const [rebarData, setRebarData] = useState<any>(null);
 
+  // Completed report upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const advanceToProofReady = trpc.projects.advanceToProofReady.useMutation();
+
   // Progress states
   const [currentMessageIdx, setCurrentMessageIdx] = useState(0);
   const [draftResult, setDraftResult] = useState<{ draftId: string; filename: string; downloadUrl: string } | null>(null);
@@ -65,6 +72,77 @@ export function ReportBotPanel({ project, isOpen, onOpenChange }: ReportBotPanel
       setStep("grade_step");
     }
   }, [project.status, draft, project.ndt_code, isOpen]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setUploadedFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setUploadedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDownload = () => {
+    if (draftResult?.draftId) {
+      window.location.href = `/api/v4/download-draft?draftId=${draftResult.draftId}`;
+    } else {
+      window.location.href = `/api/v4/download-draft?projectId=${project.id}`;
+    }
+  };
+
+  const handleSubmitCompleted = async () => {
+    if (!uploadedFile) return;
+    setIsUploading(true);
+
+    try {
+      // Upload completed report to Supabase Storage
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+      formData.append("projectId", project.id);
+
+      const res = await fetch("/api/v4/submit-completed-draft", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
+
+      // Advance project status to proof_ready
+      await advanceToProofReady.mutateAsync({
+        projectId: project.id,
+      });
+
+      // Invalidate queries to refresh UI
+      utils.projects.getById.invalidate({
+        id: project.id,
+      });
+      utils.projects.getDashboardData.invalidate();
+      if (utils.reportBot) {
+        utils.reportBot.getDraftByProject.invalidate({ projectId: project.id });
+      }
+
+      toast({
+        title: "Report submitted for proofreading!",
+        description: "Project status updated to proof_ready.",
+      });
+
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        title: "Upload failed — please try again",
+        description: error.message || "An error occurred while uploading the file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Cycling messages timer during generation
   useEffect(() => {
@@ -281,55 +359,83 @@ export function ReportBotPanel({ project, isOpen, onOpenChange }: ReportBotPanel
             </div>
           )}
 
-          {/* Step 5: Complete */}
-          {step === "complete" && draftResult && (
-            <div className="space-y-6 animate-in zoom-in duration-300 py-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 p-5 bg-ddt-surface border border-ddt-border rounded-2xl">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-full bg-emerald-950/50 border border-emerald-500/20 text-emerald-400">
-                    <CheckCircle2 className="w-6 h-6 animate-bounce" />
-                  </div>
-                  <div className="space-y-1 text-left">
-                    <h3 className="font-syne font-bold text-base text-ddt-text">Draft Ready!</h3>
-                    <p className="text-xs text-ddt-muted font-mono">{draftResult.filename}</p>
-                    <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
-                      Project status updated to: report_bot_draft
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <a
-                    href={`/api/v4/download-draft?draftId=${draftResult.draftId}`}
-                    download
-                    className="inline-flex items-center gap-2 bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2.5 px-5 rounded-xl shadow-md transition-all whitespace-nowrap"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Draft (.docx)
-                  </a>
-                </div>
+          {/* Step 5: Complete / Draft Ready */}
+          {(step === "complete" || project.status === "report_bot_draft") && (
+            <div className="draft-ready-state space-y-5 animate-in zoom-in duration-300 py-1 text-left">
+              {/* Download section */}
+              <div className="download-section p-4 bg-ddt-surface border border-ddt-border rounded-xl space-y-3">
+                <h3 className="font-syne font-bold text-sm sm:text-base text-ddt-text">Draft Ready for Completion</h3>
+                <p className="text-xs text-ddt-muted leading-relaxed">
+                  Download the draft, complete the highlighted sections in Word, then re-upload below.
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleDownload}
+                  className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 px-4 rounded-xl shadow-md flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>⬇ Download Draft</span>
+                </Button>
               </div>
 
-              {/* Action Information Box */}
-              <div className="p-4 bg-amber-950/20 border border-amber-500/20 rounded-xl space-y-2 text-left">
-                <div className="flex items-center gap-2 text-amber-400">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Staff Action Required</span>
-                </div>
-                <p className="text-xs text-amber-300 leading-relaxed">
-                  Open the downloaded draft in Microsoft Word and complete the highlighted sections:
+              {/* Instructions */}
+              <div className="instructions-box p-4 bg-amber-950/20 border border-amber-500/20 rounded-xl space-y-2">
+                <p className="instructions-title text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  Complete these highlighted sections:
                 </p>
-                <ul className="text-xs text-amber-300/80 list-disc list-inside space-y-1 pl-1">
-                  <li>Visual Test (Section 4.2)</li>
-                  <li>Site location map (Page 7)</li>
-                  <li>Weather condition image (Page 7)</li>
-                  <li>Building photographs (Appendix)</li>
+                <ul className="text-xs text-amber-300 space-y-1 pl-1">
+                  <li className="flex items-center gap-1.5"><span>⚠</span> Section 4.2 — Visual Test</li>
+                  <li className="flex items-center gap-1.5"><span>⚠</span> Page 7 — Site location map</li>
+                  <li className="flex items-center gap-1.5"><span>⚠</span> Page 7 — Weather condition image</li>
+                  <li className="flex items-center gap-1.5"><span>⚠</span> Appendix — Building photographs</li>
+                  <li className="flex items-center gap-1.5"><span>⚠</span> Appendix — AutoCAD sketch</li>
                 </ul>
-                <p className="text-xs text-amber-300/60 pt-1">
-                  When complete, re-upload the finalized report document to send it to the Proofread Bot.
-                </p>
               </div>
 
-              <div className="flex justify-end pt-2">
+              {/* Re-upload section */}
+              <div className="upload-section p-4 bg-ddt-surface border border-ddt-border rounded-xl space-y-3">
+                <h3 className="font-syne font-bold text-sm sm:text-base text-ddt-text">Upload Completed Report</h3>
+                <p className="text-xs text-ddt-muted leading-relaxed">
+                  Once all sections are complete, upload the finished .docx here.
+                </p>
+
+                <div
+                  className="drop-zone border-2 border-dashed border-ddt-border hover:border-ddt-accent/60 bg-ddt-input/40 p-5 rounded-xl text-center cursor-pointer transition-colors text-xs text-ddt-text"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleFileDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadedFile
+                    ? `✓ ${uploadedFile.name}`
+                    : "Drop completed .docx here or click to browse"
+                  }
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".docx"
+                    onChange={handleFileSelect}
+                    style={{ display: "none" }}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={handleSubmitCompleted}
+                  disabled={!uploadedFile || isUploading}
+                  className="submit-btn bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2.5 px-5 rounded-xl shadow-md w-full disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <span>Submit for Proofreading →</span>
+                  )}
+                </Button>
+              </div>
+
+              <div className="flex justify-end pt-1">
                 <Button
                   type="button"
                   variant="outline"

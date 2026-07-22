@@ -66,20 +66,16 @@ function ProofreadBotPanel({
     );
   }
 
-  if (project.status === "proof_ready") {
+  if (project.status === "proof_ready" || project.status === "report_done") {
     return (
       <div className="mt-4">
-        {isManager ? (
-          <Button
-            type="button"
-            onClick={() => setIsProofOpen(true)}
-            className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
-          >
-            Send to Proofread Bot
-          </Button>
-        ) : (
-          <span className="text-xs text-emerald-400 font-semibold block text-center">Ready for proofreading</span>
-        )}
+        <Button
+          type="button"
+          onClick={() => setIsProofOpen(true)}
+          className="bg-ddt-lime hover:bg-ddt-lime/90 text-black font-bold text-xs py-2 w-full rounded-xl transition-all"
+        >
+          Send to Proofread Bot
+        </Button>
       </div>
     );
   }
@@ -260,7 +256,7 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
       return "pending";
     }
     if (stageId === "proofreading") {
-      if (status === "proof_ready") return "active";
+      if (status === "proof_ready" || status === "report_done") return "active";
       const orderIdx = STATUS_ORDER.indexOf(status || "not_started");
       const uploadedIdx = STATUS_ORDER.indexOf("report_uploaded");
       if (orderIdx >= uploadedIdx) return "completed";
@@ -272,6 +268,8 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
 
   const getStageDisplayStatus = (stageId: string, assignment: any) => {
     const calculated = getStageStatus(stageId, assignment);
+    if (calculated === "completed") return "completed";
+    if (calculated === "active") return "in_progress";
     if (assignment?.status) return assignment.status;
     if (stageId === "lsmtl_upload") return calculated;
     return calculated === "active" ? "in_progress" : "pending";
@@ -432,6 +430,13 @@ export function PipelineBar({ project, stages, userRole, plan }: PipelineBarProp
               glowClass = "shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/30";
               statusIcon = <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
               statusLabel = "In Progress";
+            }
+
+            if (stage.id === "proofreading" && (project.status === "proof_ready" || project.status === "report_done")) {
+              borderClass = "border-blue-500/50 bg-blue-950/10";
+              glowClass = "shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/30";
+              statusIcon = <Clock className="w-4 h-4 text-blue-400" />;
+              statusLabel = "● Ready for Proofread";
             }
 
             if (stage.id === "lsmtl_upload") {

@@ -590,6 +590,78 @@ export const projectsRouter = router({
 
       return { success: true, deletedId: input.id }
     }),
+
+  advanceToProofReady: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminClient = createAdminClient();
+
+      const { data: user } = await adminClient
+        .from("users")
+        .select("tenant_id")
+        .eq("id", ctx.userId)
+        .single();
+
+      const { data: project } = await adminClient
+        .from("projects")
+        .select("id, status, ndt_code, tenant_id")
+        .eq("id", input.projectId)
+        .single();
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      if (project.status !== "report_bot_draft") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Project must be at report_bot_draft status to advance to proofreading",
+        });
+      }
+
+      const { error } = await adminClient
+        .from("projects")
+        .update({ status: "proof_ready" })
+        .eq("id", input.projectId)
+        .eq("tenant_id", user?.tenant_id);
+
+      if (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error.message,
+        });
+      }
+
+      await adminClient
+        .from("status_history")
+        .insert({
+          project_id: input.projectId,
+          tenant_id: user?.tenant_id,
+          from_status: "report_bot_draft",
+          to_status: "proof_ready",
+          changed_by: ctx.userId,
+          notes: "Completed draft submitted for proofreading",
+        });
+
+      if (user?.tenant_id) {
+        await adminClient
+          .from("notifications")
+          .insert({
+            tenant_id: user.tenant_id,
+            user_id: ctx.userId,
+            type: "stage_completed",
+            title: "Ready for Proofread Bot",
+            body: `${project.ndt_code} completed draft has been submitted. Run Proofread Bot to check against LSMTL guidelines.`,
+            related_project_id: input.projectId,
+            is_read: false,
+          });
+      }
+
+      return { success: true };
+    }),
 });
 
 
